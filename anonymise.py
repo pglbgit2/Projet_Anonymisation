@@ -5,6 +5,11 @@ faker = Faker('fr_FR')
 
 def anonymise(fileToReadName, fileToWriteName):
     tab = CSVmanager.readTabCSVFile(fileToReadName)
+    for value in tab:
+        value[0] = faker.first_name()
+        value[1] = faker.last_name()
+    random.shuffle(tab)
+    CSVmanager.writeTabCSVFile(tab,fileToWriteName)
 
 def generate_csv(filename, nbvalues):
     ensemble_de_valeurs = []
