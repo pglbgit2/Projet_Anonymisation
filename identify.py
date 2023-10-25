@@ -12,10 +12,10 @@ def identify(Anonymfilename, Originalfilename):
     anonymTab = CSVmanager.readTabCSVFile(Anonymfilename)
     OgTab = CSVmanager.readTabCSVFile(Originalfilename)
     corrTab = []
-    for i in range(len(anonymTab)):
+    for i in range(1,len(anonymTab)):
         maxNumberOfCorrelation = 0
         lineOfCorrelation = -1
-        for j in range(len(OgTab)):
+        for j in range(1,len(OgTab)):
             nbCorr = correlate(anonymTab[i], OgTab[j])
             if nbCorr > maxNumberOfCorrelation:
                 maxNumberOfCorrelation = nbCorr
