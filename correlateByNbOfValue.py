@@ -36,10 +36,13 @@ print(">after counting lines in file")
 
 joined_df = original_counts.join(modified_counts, (col("count_original") == col("count_modified")), "inner")
 
-print(">after matching lines in file")
+print(">after joining lines in file with same count")
+
+lines_matching =joined_df.select("idOg", "idAno", "count_original")
+
 
 # Écrire les correspondances dans un fichier correlate
-CSVManager.writeTabCSVFile(joined_df.toPandas(),"correlate")
+CSVManager.writeTabCSVFile(lines_matching.toPandas(),"correlate")
 
 
 # Arrêter la session Spark
