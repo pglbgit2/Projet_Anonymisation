@@ -15,11 +15,11 @@ schema = StructType([
 ])
 print(">after schema definition")
 # Charger les fichiers CSV avec le schéma spécifié
-original_df = spark.read.csv("tableau.csv", schema=schema, header=True).withColumn("Ogrow_number", monotonically_increasing_id()+2)
+original_df = spark.read.csv("default.csv", schema=schema, header=True).withColumn("Ogrow_number", monotonically_increasing_id()+2)
 print(">after reading original file")
 
 
-modified_df = spark.read.csv("anonymisedTab.csv", schema=schema, header=True).withColumn("Anonymrow_number", monotonically_increasing_id()+2)
+modified_df = spark.read.csv("ALANOZY_545.csv", schema=schema, header=True).withColumn("Anonymrow_number", monotonically_increasing_id()+2)
 print(">after reading anonymized file")
 
 
