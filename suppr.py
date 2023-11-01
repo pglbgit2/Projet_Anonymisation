@@ -13,12 +13,12 @@ if __name__ == "__main__":
 
             line_index = 0  # debugging
 
-            for row in reader:
-                line_index += 1
-                line = row[0]
-                if 'DEL' not in line:
-                    output_file.write(line)
-                    output_file.write('\n')
+            # for row in reader:
+            #     line_index += 1
+            #     line = row[0]
+            #     if 'DEL' not in line:
+            #         output_file.write(line)
+            #         output_file.write('\n')
 
-            # lines_to_write = [row[0] for row in reader if 'DEL' not in row[0]]
-            # output_file.write('\n'.join(lines_to_write) + '\n')
+            lines_to_write = [row[0] for row in reader if 'DEL' not in row[0]]
+            output_file.write('\n'.join(lines_to_write) + '\n')
