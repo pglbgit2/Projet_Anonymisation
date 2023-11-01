@@ -7,9 +7,7 @@ import CSVmanager
 def correlate(value1, value2):
     assert len(value1) == len(value2)
     nb = 0
-    for i in range(len(value1)):
-        if value1[i] == value2[i]:
-            nb += 1
+    nb = sum(1 for v1, v2 in zip(value1, value2) if v1 == v2)
     return nb
 
 
@@ -105,7 +103,7 @@ def identification(Anon_file, Original_file):
 
 
 def identificationV2(Anon_file, Original_file):
-    # Cette algorithme à été conçu pour réidentifier la base de Données autofill_476,
+    # Cette algorithme à été conçu pour réidentifier la base de Données autofill_476.csv,
     # une fois ses lignes 'DEL' supprimées. (Voir suppr.py sur le discord)
 
     print("> Chargement des tables CSV dans les Data-Frames Pandas.")
