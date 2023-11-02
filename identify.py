@@ -1,6 +1,7 @@
 import csv
 import pandas as pd
 import numpy as np
+import json
 import CSVmanager
 
 
@@ -11,25 +12,6 @@ def correlate(value1, value2):
         if value1[i] == value2[i]:
             nb += 1
     return nb
-
-
-import json
-
-# Data to be written
-dictionary = {
-    "name": "sathiyajith",
-    "rollno": 56,
-    "cgpa": 8.6,
-    "phonenumber": "9976770500"
-}
-
-# Serializing json
-json_object = json.dumps(dictionary)
-
-
-# Writing to sample.json
-# with open("sample.json", "w") as outfile:
-#    outfile.write(json_object)
 
 
 def isKey(Dict, Key):
@@ -136,11 +118,11 @@ def identificationV2(Anon_file, Original_file):
 
     # Retirer Long et Lat
 
-    print("> Suppression les colonnes/éléments indésirables.")
+    print("> Suppression des colonnes/éléments indésirables.")
     df_merge.drop(['Long', 'Lat'], axis=1, inplace=True)
 
     # Ne garder que la date Année-Mois
-    print(">>Ignorez l'alerte")
+    print(">> Ignorez l'alerte ci-dessous")
     liste_date = df_merge['Date']
     for i in range(0, len(liste_date)):
         liste_date[i] = liste_date[i][:7]
@@ -178,4 +160,4 @@ def identificationV2(Anon_file, Original_file):
 
 # sort_table("autofill_476_clean.csv","2015-03-27 13:13:55") #* K E E P    O U T *
 # identification("autofill_476_clean.csv", "ReferenceINSA.csv")
-identificationV2("autofill_476_clean.csv", "ReferenceINSA.csv")
+identificationV2("TresAnonyme_428_clean.csv", "ReferenceINSA.csv")
