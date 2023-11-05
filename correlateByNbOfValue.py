@@ -15,11 +15,11 @@ schema = StructType([
 ])
 print(">after schema definition")
 # Charger les fichiers CSV avec le schéma spécifié
-original_df = spark.read.csv("tableau.csv", schema=schema, header=True).withColumn("Ogrow_number", monotonically_increasing_id()+2)
+original_df = spark.read.csv("default.csv", schema=schema, header=True).withColumn("Ogrow_number", monotonically_increasing_id()+2)
 print(">after reading original file")
 
 
-modified_df = spark.read.csv("anonymisedTab.csv", schema=schema, header=True).withColumn("Anonymrow_number", monotonically_increasing_id()+2)
+modified_df = spark.read.csv("ALANOZY_545.csv", schema=schema, header=True).withColumn("Anonymrow_number", monotonically_increasing_id()+2)
 print(">after reading anonymized file")
 
 
@@ -29,12 +29,15 @@ modified_df = modified_df.withColumnRenamed("identifiant", "idAno")
 print(">after re-naming columns")
 
 
-# Compter le nombre de lignes pour chaque identifiant dans chaque fichier
 original_counts = original_df.groupBy("idOg").agg(count("*").alias("count_original"))
-modified_counts = modified_df.groupBy("idAno").agg(count("*").alias("count_modified"))
+modified_counts = modified_df.groupBy("idAno").agg(count("*").alias("count_anonym"))
 print(">after counting lines in file")
 
-joined_df = original_counts.join(modified_counts, (col("count_original") == col("count_modified")), "inner")
+original_counts = original_counts.dropDuplicates(["count_original"])
+modified_counts = modified_counts.dropDuplicates(["count_anonym"])
+print('>after selecting uniq counts in file')
+
+joined_df = original_counts.join(modified_counts, (col("count_original") == col("count_anonym")), "inner")
 
 print(">after joining lines in file with same count")
 

@@ -35,5 +35,5 @@ def anonymise(fileToReadName, fileToWriteName):
 
 
 
-#generate_csv('tableau.csv', 50)
+generate_csv('tableau.csv', 50)
 anonymise("tableau.csv", "anonymisedTab.csv")
