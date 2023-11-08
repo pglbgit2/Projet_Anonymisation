@@ -14,3 +14,6 @@ correlation*
 correspondance*
 correlate
 *.csv
+__pycache__/CSVManager.cpython-311.pyc
+.gitignore
+autofill444_Identification.json
