@@ -1,8 +1,8 @@
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import count, col, date_format
-
+from pyspark.sql.functions import count, col, date_format, length
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 import CSVManager
+import tojson
 
 spark = SparkSession.builder.appName("Correlation Analysis").getOrCreate()
 
@@ -19,7 +19,7 @@ original_df = spark.read.csv("default.csv", schema=schema, header=False, sep='\t
 
 print(">after reading original file")
 
-#modified_df = spark.read.csv("ALANOZY_545.csv", schema=schema, header=False, sep='\t')
+modified_df = spark.read.csv("../autofill_444_clean.csv", schema=schema, header=False, sep='\t')
 #modified_df = spark.read.csv("anonymisedTab.csv", schema=schema, header=True)
 
 print(">after reading anonymized file")
@@ -44,10 +44,10 @@ print('>after selecting uniq counts in file')
 joined_df = original_counts.join(modified_counts, col("count_original") == col("count_anonym"))
 print(">after joining lines in file with same count")
 
-lines_matching =joined_df.select("idOg", "idAno", "monthOG_year", "count_original")
+lines_matching =joined_df.select("idOg", "monthOG_year", "idAno")
 
-CSVManager.writeTabCSVFile(lines_matching.toPandas(),"correlate")
-
+#CSVManager.writeTabCSVFile(lines_matching.toPandas(),"correlate")
+tojson.dataframeToJson(lines_matching, original_df.select("idOg").count(),"autofill444")
 
 # Arrêter la session Spark
 spark.stop()
