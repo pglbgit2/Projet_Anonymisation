@@ -26,8 +26,16 @@ def generate_csv(filename, nbvalues):
 
 def anonymise(fileToReadName, fileToWriteName):
     tab = CSVManager.readTabCSVFile(fileToReadName)
+    idAno = {}
     for value in tab:
-        #value[0] = generateString(5)
+        if(value[0] not in idAno):
+            pseudo = generateString(5)
+            idAno[0] = pseudo
+            value[0] = pseudo
+        else:
+            value[0] = idAno[value[0]]
+        
+
         value[2] += random.uniform(0.0001, 0.0002)
         value[3] += random.uniform(0.001, 0.001)
     random.shuffle(tab)

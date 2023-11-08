@@ -40,7 +40,7 @@ original_counts = original_counts.dropDuplicates(["count_original"])
 modified_counts = modified_counts.dropDuplicates(["count_anonym"])
 print('>after selecting uniq counts in file')
 
-joined_df = original_counts.join(modified_counts).where((col("count_original") == col("count_anonym")) & (col("monthOG_year") == col("monthAno_year")))
+joined_df = original_counts.join(modified_counts, col("count_original") == col("count_anonym"))
 
 print(">after joining lines in file with same count")
 
