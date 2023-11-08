@@ -10,7 +10,7 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, expr, round
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 
-from utils import semaine2015
+from utils import semaine2015, semaine2015V2, semaine2015V3, semainesUtils
 
 
 def correlate(value1, value2):
@@ -129,23 +129,23 @@ def identificationV2(Anon_file, Original_file):
 
 
     # Ne garder que la date Année-Mois (Transformer la date du jour en Année-Numéro_Semaine)
-    print(">> Ignorez l'alerte ci-dessous")
+    """print(">> Ignorez l'alerte ci-dessous")
     liste_date = df_merge['Date']
+    print(liste_date)
     print("Longueur de la liste Liste-Date : "+str(len(liste_date)))
     for i in range(0, len(liste_date)):
-        Date_du_jour = liste_date[i][5:10]
-        for j in range(10, 20, 1):
-            if Date_du_jour in semaine2015[str(j)]:
-                liste_date[i] = "2015-"+str(j)
-                break
+        liste_date[i] = liste_date[i][5:10]
 
-    df_merge['Date'] = liste_date
+    
+    df_merge['Date'] = liste_date """
 
-    # print(df_merge.head(6))
+    df_merge['Date'] = df_merge['Date'].str[5:10]
+    df_merge['Date'] = df_merge['Date'].replace(semaine2015V3)
 
     # Supprimer les doublons
     df_merge.drop_duplicates(keep='first', inplace=True)
-    df_merge.info(verbose=True)
+    # df_merge.info(verbose=True)
+    # print(df_merge.head(6))
 
     # ???
 
@@ -164,6 +164,24 @@ def identificationV2(Anon_file, Original_file):
             json_rendu[identifiant] = dict()
 
         json_rendu[identifiant][date] = iden_Anon
+
+    verif = {"2015-10":False, "2015-11":False, "2015-12":False, "2015-13":False, "2015-14":False, "2015-15":False, "2015-16":False, "2015-17":False, "2015-18":False,
+                 "2015-19":False, "2015-20":False}
+    for id in json_rendu.keys():
+        for j in json_rendu[id].keys():
+            if j in semainesUtils:
+                verif[j] = True
+
+        for j in range(0,9,1):
+            asso = verif.popitem()
+            if asso[1] is False :
+                json_rendu[id][asso[0]] = None
+
+
+        verif = {"2015-10": False, "2015-11": False, "2015-12": False, "2015-13": False, "2015-14": False,
+                 "2015-15": False, "2015-16": False, "2015-17": False, "2015-18": False,
+                 "2015-19": False, "2015-20": False}
+
 
     json_out = json.dumps(json_rendu)
     with open(Anon_file[:-4] + "_Identification.json", "w") as outfile:
@@ -300,4 +318,4 @@ def identificationV3(Anon_file, Original_file):
 
 # sort_table("autofill_476_clean.csv","2015-03-27 13:13:55") #* K E E P    O U T *
 # identification("autofill_476_clean.csv", "ReferenceINSA.csv")
-identificationV2("autofill_476_clean.csv", "ReferenceINSA.csv")
+identificationV2("autofill_444_clean.csv", "ReferenceINSA.csv")
