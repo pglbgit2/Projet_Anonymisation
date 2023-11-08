@@ -1,7 +1,14 @@
 import csv
 import pandas as pd
 import numpy as np
+import pyspark.pandas as ps
+import pyspark.sql as psk
+from datetime import datetime, date
+import json
 import CSVmanager
+from pyspark.sql import SparkSession
+from pyspark.sql.functions import col, expr, round
+from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 
 
 def correlate(value1, value2):
@@ -9,25 +16,6 @@ def correlate(value1, value2):
     nb = 0
     nb = sum(1 for v1, v2 in zip(value1, value2) if v1 == v2)
     return nb
-
-
-import json
-
-# Data to be written
-dictionary = {
-    "name": "sathiyajith",
-    "rollno": 56,
-    "cgpa": 8.6,
-    "phonenumber": "9976770500"
-}
-
-# Serializing json
-json_object = json.dumps(dictionary)
-
-
-# Writing to sample.json
-# with open("sample.json", "w") as outfile:
-#    outfile.write(json_object)
 
 
 def isKey(Dict, Key):
@@ -52,7 +40,6 @@ def sort_table(Table_csv, byData):
 
 
 def identification(Anon_file, Original_file):
-
     # Algo très long à l'éxecution. Opère sur des descripteurs de fichiers uniquement
 
     with open(Anon_file, 'r') as Anon:
@@ -98,7 +85,7 @@ def identification(Anon_file, Original_file):
                     continue
 
             json_out = json.dumps(json_rendu)
-            with open(Anon_file+"_Identification.json", "w") as outfile:
+            with open(Anon_file + "_Identification.json", "w") as outfile:
                 outfile.write(json_out)
 
 
@@ -123,9 +110,9 @@ def identificationV2(Anon_file, Original_file):
 
     # Arrondir Long et Lat du Origin au centième.
     # print(data_Origin.head(8))
-    print("> Arrondissement des coordonnées géographiques.")
-    data_Origin['Long'] = np.round(data_Origin['Long'], decimals=2)
-    data_Origin['Lat'] = np.round(data_Origin['Lat'], decimals=2)
+    # print("> Arrondissement des coordonnées géographiques.")
+    # data_Origin['Long'] = np.round(data_Origin['Long'], decimals=2)
+    # data_Origin['Lat'] = np.round(data_Origin['Lat'], decimals=2)
     # print(data_Origin.head(8))
 
     print("> Jointure interne des Data-Frames Origin et Anon. (Cela peut prendre un petit moment)")
@@ -134,11 +121,11 @@ def identificationV2(Anon_file, Original_file):
 
     # Retirer Long et Lat
 
-    print("> Suppression les colonnes/éléments indésirables.")
+    print("> Suppression des colonnes/éléments indésirables.")
     df_merge.drop(['Long', 'Lat'], axis=1, inplace=True)
 
     # Ne garder que la date Année-Mois
-    print(">>Ignorez l'alerte")
+    print(">> Ignorez l'alerte ci-dessous")
     liste_date = df_merge['Date']
     for i in range(0, len(liste_date)):
         liste_date[i] = liste_date[i][:7]
@@ -168,12 +155,136 @@ def identificationV2(Anon_file, Original_file):
         json_rendu[identifiant][date] = [iden_Anon]
 
     json_out = json.dumps(json_rendu)
-    with open(Anon_file[:-4]+"_Identification.json", "w") as outfile:
+    with open(Anon_file[:-4] + "_Identification.json", "w") as outfile:
         outfile.write(json_out)
 
     # PROFIT !
 
 
+def identificationV3(Anon_file, Original_file):
+    # à Executer avec les droits administrateurs
+
+    spark = SparkSession.builder.appName("DistanceCalculations").getOrCreate()
+
+    schemaOriginal = StructType([
+        StructField("identifiant", StringType(), True),
+        StructField("timestamp", StringType(), True),
+        StructField("longitude", DoubleType(), True),
+        StructField("latitude", DoubleType(), True)
+    ])
+
+    schemaAnon = StructType([
+        StructField("identifiant_Anon", StringType(), True),
+        StructField("timestamp", StringType(), True),
+        StructField("longitude", DoubleType(), True),
+        StructField("latitude", DoubleType(), True)
+    ])
+
+    df_Origin = spark.read.csv(Original_file, sep="\t", header=False, schema=schemaOriginal)
+    df_Anon = spark.read.csv(Anon_file, sep="\t", header=False, schema=schemaAnon)
+
+    # Définissez la position géographique de référence pour chaque groupe
+    reference_latitude = 45.764043  # Remplacez par votre latitude de référence
+    reference_longitude = 4.835659  # Remplacez par votre longitude de référence
+
+    # Ici la référence est le centre de Lyon
+
+    df_Origin = df_Origin.withColumn("distance_to_reference",
+                                     expr("SQRT(POW(latitude - {0}, 2) + POW(longitude - {1}, 2))".format(
+                                         reference_latitude,
+                                         reference_longitude))
+                                     )
+
+    df_Anon = df_Anon.withColumn("distance_to_reference",
+                                 expr("SQRT(POW(latitude - {0}, 2) + POW(longitude - {1}, 2))".format(
+                                     reference_latitude,
+                                     reference_longitude))
+                                 )
+
+    # On ne garde que le mois pour traiter les distances
+    # df_Anon.withColumn("timestamp",col("timestamp").cast(StringType()))
+    df_Anon = df_Anon.withColumn("timestamp", col("timestamp").substr(0, 7))
+
+    # df_Origin.withColumn("timestamp", col("timestamp").cast(StringType()))
+    df_Origin = df_Origin.withColumn("timestamp", col("timestamp").substr(0, 7))
+
+    print(df_Origin.head(1))
+
+    # Sélectionnez la ligne avec la distance maximale pour chaque identifiant : Couplé avec la date du mois !
+    df_Origin = df_Origin.groupBy(["identifiant", "timestamp"]).max("distance_to_reference")
+    df_Origin = df_Origin.withColumnRenamed("max(distance_to_reference)", "max_distance")
+
+    print("Nombre de couples Identifiants-Mois-DistanceMax dans Origin : " + str(df_Origin.count()))
+
+    df_Anon = df_Anon.groupBy(["identifiant_Anon", "timestamp"]).max("distance_to_reference")
+    df_Anon = df_Anon.withColumnRenamed("max(distance_to_reference)", "max_distance")
+
+    print("Nombre de couples Identifiants-Mois-DistanceMax dans df_Anon : " + str(df_Anon.count()))
+
+    # Ici le code pour arrondir les distances si jamais ça ne marche pas
+
+    precision = 4
+    df_Anon = df_Anon.withColumn("max_distance", round("max_distance", precision))
+    df_Origin = df_Origin.withColumn("max_distance", round("max_distance", precision))
+
+    df_Anon = df_Anon.toPandas()
+    df_Origin = df_Origin.toPandas()
+
+    df_Anon.to_csv("tmp_Anon.csv")
+    df_Origin.to_csv("tmp_Origin.csv")
+
+    # Technique d'utilisateur windows + repompage QUALI
+
+    json_rendu = dict()
+
+    with open("tmp_Anon.csv", 'r') as Anon:
+        with open("tmp_Origin.csv", 'r') as BDD:
+            readerBDD = csv.reader(BDD, delimiter='\n')
+            readerAnon = csv.reader(Anon, delimiter='\n')
+
+            for rowA in readerAnon:
+                line = str(rowA)
+                line = line[2:-2]
+                if line[0] == ',':
+                    continue
+                data_Anon = line.split(",")
+                ID_Anon = data_Anon[1]
+                Date_Anon = data_Anon[2]
+                DistMax_Anon = float(data_Anon[3])
+
+                for rowO in readerBDD:
+                    line = str(rowO)
+                    line = line[2:-2]
+                    if line[0] == ',':
+                        continue
+                    data = line.split(",")
+                    ID_Origin = data[1]
+                    Date_Origin = data[2]
+                    DistMax_Origin = float(data[3])
+
+                    if not isKey(json_rendu, ID_Origin):
+                        json_rendu[ID_Origin] = dict()
+
+                    if DistMax_Anon - 1*10**(precision-1) <= DistMax_Origin <= DistMax_Anon + 1*10**(precision-1) and \
+                       Date_Anon == Date_Origin:
+                        json_rendu[ID_Origin][Date_Origin] = ID_Anon
+                        print("Correspondance")
+                        print(ID_Origin + ":{" + Date_Origin + ":" + ID_Anon + "}")
+                        break
+
+                BDD.seek(0)
+
+    json_out = json.dumps(json_rendu)
+    with open(Anon_file + "_Identification.json", "w") as outfile:
+        outfile.write(json_out)
+
+
+    # print("Merge en cours...")
+    # df_merge = df_Origin.join(df_Anon, on=['timestamp', 'max_distance'], how='inner')
+    # print("Nombre de couples Identifiants-Mois-DistanceMax dans df_merge : " + str(df_merge.count()))
+    # print(df_merge.head(4))
+
+
 # sort_table("autofill_476_clean.csv","2015-03-27 13:13:55") #* K E E P    O U T *
 # identification("autofill_476_clean.csv", "ReferenceINSA.csv")
-identificationV2("autofill_476_clean.csv", "ReferenceINSA.csv")
+identificationV3("MichelLardon_498_clean.csv", "ReferenceINSA.csv")
