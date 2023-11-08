@@ -160,12 +160,12 @@ def identificationV2(Anon_file, Original_file):
 
         identifiant = Liste_finale[i][0]
         date = Liste_finale[i][1]
-        iden_Anon = Liste_finale[i][2]
+        iden_Anon = str(Liste_finale[i][2])
 
         if not isKey(json_rendu, identifiant):
             json_rendu[identifiant] = dict()
 
-        json_rendu[identifiant][date] = iden_Anon
+        json_rendu[identifiant][date] = [iden_Anon]
 
     json_out = json.dumps(json_rendu)
     with open(Anon_file[:-4]+"_Identification.json", "w") as outfile:
