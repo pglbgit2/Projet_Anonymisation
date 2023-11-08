@@ -10,6 +10,8 @@ from pyspark.sql import SparkSession
 from pyspark.sql.functions import col, expr, round
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 
+from utils import semaine2015
+
 
 def correlate(value1, value2):
     assert len(value1) == len(value2)
@@ -110,9 +112,9 @@ def identificationV2(Anon_file, Original_file):
 
     # Arrondir Long et Lat du Origin au centième.
     # print(data_Origin.head(8))
-    # print("> Arrondissement des coordonnées géographiques.")
-    # data_Origin['Long'] = np.round(data_Origin['Long'], decimals=2)
-    # data_Origin['Lat'] = np.round(data_Origin['Lat'], decimals=2)
+    print("> Arrondissement des coordonnées géographiques.")
+    data_Origin['Long'] = np.round(data_Origin['Long'], decimals=2)
+    data_Origin['Lat'] = np.round(data_Origin['Lat'], decimals=2)
     # print(data_Origin.head(8))
 
     print("> Jointure interne des Data-Frames Origin et Anon. (Cela peut prendre un petit moment)")
@@ -124,12 +126,21 @@ def identificationV2(Anon_file, Original_file):
     print("> Suppression des colonnes/éléments indésirables.")
     df_merge.drop(['Long', 'Lat'], axis=1, inplace=True)
 
-    # Ne garder que la date Année-Mois
+
+
+    # Ne garder que la date Année-Mois (Transformer la date du jour en Année-Numéro_Semaine)
     print(">> Ignorez l'alerte ci-dessous")
     liste_date = df_merge['Date']
+    print("Longueur de la liste Liste-Date : "+str(len(liste_date)))
     for i in range(0, len(liste_date)):
-        liste_date[i] = liste_date[i][:7]
+        Date_du_jour = liste_date[i][5:10]
+        for j in range(10, 20, 1):
+            if Date_du_jour in semaine2015[str(j)]:
+                liste_date[i] = "2015-"+str(j)
+                break
+
     df_merge['Date'] = liste_date
+
     # print(df_merge.head(6))
 
     # Supprimer les doublons
@@ -147,7 +158,7 @@ def identificationV2(Anon_file, Original_file):
 
         identifiant = Liste_finale[i][0]
         date = Liste_finale[i][1]
-        iden_Anon = Liste_finale[i][2]
+        iden_Anon = [str(Liste_finale[i][2])]
 
         if not isKey(json_rendu, identifiant):
             json_rendu[identifiant] = dict()
@@ -223,7 +234,7 @@ def identificationV3(Anon_file, Original_file):
 
     # Ici le code pour arrondir les distances si jamais ça ne marche pas
 
-    precision = 4
+    precision = 2
     df_Anon = df_Anon.withColumn("max_distance", round("max_distance", precision))
     df_Origin = df_Origin.withColumn("max_distance", round("max_distance", precision))
 
@@ -265,8 +276,9 @@ def identificationV3(Anon_file, Original_file):
                     if not isKey(json_rendu, ID_Origin):
                         json_rendu[ID_Origin] = dict()
 
-                    if DistMax_Anon - 1*10**(precision-1) <= DistMax_Origin <= DistMax_Anon + 1*10**(precision-1) and \
-                       Date_Anon == Date_Origin:
+                    if DistMax_Anon - 1 * 10 ** (precision - 1) <= DistMax_Origin <= DistMax_Anon + 1 * 10 ** (
+                            precision - 1) and \
+                            Date_Anon == Date_Origin:
                         json_rendu[ID_Origin][Date_Origin] = ID_Anon
                         print("Correspondance")
                         print(ID_Origin + ":{" + Date_Origin + ":" + ID_Anon + "}")
@@ -275,9 +287,10 @@ def identificationV3(Anon_file, Original_file):
                 BDD.seek(0)
 
     json_out = json.dumps(json_rendu)
-    with open(Anon_file + "_Identification.json", "w") as outfile:
+    with open(Anon_file[:-4] + "_Identification.json", "w") as outfile:
         outfile.write(json_out)
 
+    spark.stop()
 
     # print("Merge en cours...")
     # df_merge = df_Origin.join(df_Anon, on=['timestamp', 'max_distance'], how='inner')
@@ -287,4 +300,4 @@ def identificationV3(Anon_file, Original_file):
 
 # sort_table("autofill_476_clean.csv","2015-03-27 13:13:55") #* K E E P    O U T *
 # identification("autofill_476_clean.csv", "ReferenceINSA.csv")
-identificationV3("MichelLardon_498_clean.csv", "ReferenceINSA.csv")
+identificationV2("autofill_476_clean.csv", "ReferenceINSA.csv")
