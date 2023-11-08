@@ -14,3 +14,5 @@ correlation*
 correspondance*
 correlate
 *.csv
+*__pycache__*
+.idea/*
