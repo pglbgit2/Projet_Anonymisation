@@ -1,7 +1,7 @@
 import csv
 import pandas as pd
 import numpy as np
-import pyspark.pandas as ps
+# import pyspark.pandas as ps
 import pyspark.sql as psk
 from datetime import datetime, date
 import json
@@ -109,11 +109,11 @@ def identificationV2(Anon_file, Original_file):
     json_rendu = dict()
 
     # Arrondir Long et Lat du Origin au centième.
-    # print(data_Origin.head(8))
-    # print("> Arrondissement des coordonnées géographiques.")
-    # data_Origin['Long'] = np.round(data_Origin['Long'], decimals=2)
-    # data_Origin['Lat'] = np.round(data_Origin['Lat'], decimals=2)
-    # print(data_Origin.head(8))
+    print(data_Origin.head(8))
+    print("> Arrondissement des coordonnées géographiques.")
+    data_Origin['Long'] = np.round(data_Origin['Long'], decimals=2)
+    data_Origin['Lat'] = np.round(data_Origin['Lat'], decimals=2)
+    print(data_Origin.head(8))
 
     print("> Jointure interne des Data-Frames Origin et Anon. (Cela peut prendre un petit moment)")
     df_merge = data_Origin.merge(data_Anon, on=['Date', 'Long', 'Lat'], how='inner')
@@ -223,7 +223,7 @@ def identificationV3(Anon_file, Original_file):
 
     # Ici le code pour arrondir les distances si jamais ça ne marche pas
 
-    precision = 4
+    precision = 2
     df_Anon = df_Anon.withColumn("max_distance", round("max_distance", precision))
     df_Origin = df_Origin.withColumn("max_distance", round("max_distance", precision))
 
@@ -286,5 +286,5 @@ def identificationV3(Anon_file, Original_file):
 
 
 # sort_table("autofill_476_clean.csv","2015-03-27 13:13:55") #* K E E P    O U T *
-# identification("autofill_476_clean.csv", "ReferenceINSA.csv")
-identificationV3("MichelLardon_498_clean.csv", "ReferenceINSA.csv")
+identificationV2("autofill_476_clean.csv", "ReferenceINSA.csv")
+# identificationV3("MichelLardon_498_clean.csv", "ReferenceINSA.csv")
