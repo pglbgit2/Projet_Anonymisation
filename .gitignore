@@ -16,3 +16,4 @@ correlate
 *.csv
 *__pycache__*
 .idea/*
+*.json
