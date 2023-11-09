@@ -66,7 +66,11 @@ def dataframeToJSON(Dataframe, keep_null=False, liste_id=None):
                 if id not in json_rendu.keys():
                     for j in range(0,9,1):
                         date_2015 = verif.popitem()
-                        json_rendu[id][date_2015] = None
+                        print("id = " + id)
+                        print("date = " + str(date_2015))
+                        if id not in json_rendu:
+                            json_rendu[id] = {}
+                        json_rendu[id][date_2015[0]] = None
 
                     verif = {"2015-10": False, "2015-11": False, "2015-12": False, "2015-13": False, "2015-14": False,
                              "2015-15": False, "2015-16": False, "2015-17": False, "2015-18": False,
