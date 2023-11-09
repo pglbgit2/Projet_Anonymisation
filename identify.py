@@ -35,6 +35,69 @@ def equal(element1, element2, limite):
     return match == limite
 
 
+def dataframeToJSON(Dataframe, keep_null=False, liste_id=None):
+    # 3 colonnes : ID, Date, ID_Anon
+    # Ligne type : 1, 15, 126
+
+    Liste_finale = Dataframe.values.tolist()
+    json_rendu = dict()
+
+    for i in range(0, len(Liste_finale) - 1):
+
+        identifiant = Liste_finale[i][0]
+        date = "2015-" + Liste_finale[i][1]
+        iden_Anon = [str(Liste_finale[i][2])]
+
+        if not isKey(json_rendu, identifiant):
+            json_rendu[identifiant] = dict()
+
+        json_rendu[identifiant][date] = iden_Anon
+
+    if keep_null:
+        verif = {"2015-10": False, "2015-11": False, "2015-12": False, "2015-13": False, "2015-14": False,
+                 "2015-15": False,
+                 "2015-16": False, "2015-17": False, "2015-18": False,
+                 "2015-19": False, "2015-20": False}
+
+        for id in json_rendu.keys():
+            for j in json_rendu[id].keys():
+                if j in semainesUtils:
+                    verif[j] = True
+
+            for j in range(0, 9, 1):
+                asso = verif.popitem()
+                if asso[1] is False:
+                    json_rendu[id][asso[0]] = None
+
+            verif = {"2015-10": False, "2015-11": False, "2015-12": False, "2015-13": False, "2015-14": False,
+                     "2015-15": False, "2015-16": False, "2015-17": False, "2015-18": False,
+                     "2015-19": False, "2015-20": False}
+
+        if liste_id is not None:
+            # En fournissant une liste des identifiants originaux, ceux qui n'auront aucune correspondance avec Anon,
+            # mais qui existe tout de même dans La base de données originelle, pourront apparaitre dans le json avec
+            # des informations null : "2015-10": null, "2015-11": null ... etc
+
+            for id in liste_id:
+                if id not in json_rendu.keys():
+                    for j in range(0,9,1):
+                        date_2015 = verif.popitem()
+                        json_rendu[id][date_2015] = None
+
+                    verif = {"2015-10": False, "2015-11": False, "2015-12": False, "2015-13": False, "2015-14": False,
+                             "2015-15": False, "2015-16": False, "2015-17": False, "2015-18": False,
+                             "2015-19": False, "2015-20": False}
+
+    json_out = json.dumps(json_rendu)
+
+    return json_out
+
+    # Après ça, on l'injecte dans le bon fichier !
+
+    # with open(NOM_DU_FICHIER.json", "w") as outfile:
+    #    outfile.write(json_out)
+
+
 def sort_table(Table_csv, byData):
     data = pd.read_csv(Table_csv, sep="\t", names=['ID', 'Date', 'Long', 'Lat'], header=None)
     a = data.sort_values(by=[byData], axis=0)
@@ -339,8 +402,9 @@ def identificationV4(Anon_file, Original_file, precision=None, ref_geo=(45.76404
     df_Origin = spark.read.csv(Original_file, sep="\t", header=False, schema=schemaOriginal)
     df_Anon = spark.read.csv(Anon_file, sep="\t", header=False, schema=schemaAnon)
 
-    print("> Fin du chargement des fichiers")
+    print("> Fin du chargement des fichiers\n")
     print("> Calcul des distances à la référence")
+    print("\t\t>>> Référence : " + str(ref_geo[0]) + " | " + str(ref_geo[1]))
 
     df_Origin = df_Origin.withColumn("distance_to_reference",
                                      expr("SQRT(POW(latitude - {0}, 2) + POW(longitude - {1}, 2))".format(
@@ -354,51 +418,85 @@ def identificationV4(Anon_file, Original_file, precision=None, ref_geo=(45.76404
                                      ref_geo[1]))
                                  )
 
+    print("> Fin du calcul des distances à la référence\n")
     print("> Mise en date par semaine")
     df_Origin = df_Origin.withColumn("timestamp", col("timestamp").substr(6, 5))
     # df_Origin['timestamp'] = df_Origin['timestamp'].str[5:10]
     df_Origin = df_Origin.na.replace(semaine2015V3)
     # df_Origin['timestamp'] = df_Origin['timestamp'].replace(semaine2015V3)
-    # print(df_Origin.head(5))
+    # print(df_Origin.head(1))
 
     df_Anon = df_Anon.withColumn("timestamp", col("timestamp").substr(6, 5))
     df_Anon = df_Anon.na.replace(semaine2015V3)
 
-    print("> Fin de la mise en date par semaine")
+    print("> Fin de la mise en date par semaine\n")
 
     print("> Calcul des distances max et des moyennes de longitude/latitude (Sur les 2 tables Origin et Anon)")
 
-    print(">> Calcul des distances max par semaine sur Origin")
+    print("\t>> Calcul des distances max par semaine sur Origin")
     df_Origin_DistMax = df_Origin.groupBy(["identifiant", "timestamp"]).max("distance_to_reference")
     df_Origin_DistMax = df_Origin_DistMax.withColumnRenamed("max(distance_to_reference)", "max_distance")
 
-    print(">> Calcul des moyennes de longitude/latitude sur Origin")
+    # print(df_Origin_DistMax.head(1))
+
+    print("\t>> Calcul des moyennes de longitude/latitude sur Origin")
     df_Origin_Avg = df_Origin.groupBy(["identifiant", "timestamp"]).avg("longitude", "latitude")
     df_Origin_Avg = df_Origin_Avg.withColumnRenamed("avg(longitude)", "avg_longitude")
     df_Origin_Avg = df_Origin_Avg.withColumnRenamed("avg(latitude)", "avg_latitude")
 
-    print(">> Calcul des distances max par semaine sur Anon")
+    # print(df_Origin_Avg.head(1))
+
+    print("\t>> Calcul des distances max par semaine sur Anon")
     df_Anon_DistMax = df_Anon.groupBy(["identifiant_Anon", "timestamp"]).max("distance_to_reference")
     df_Anon_DistMax = df_Anon_DistMax.withColumnRenamed("max(distance_to_reference)", "max_distance")
 
-    print(">> Calcul des moyennes de longitude/latitude sur Anon")
+    print("\t>> Calcul des moyennes de longitude/latitude sur Anon")
     df_Anon_Avg = df_Anon.groupBy(["identifiant_Anon", "timestamp"]).avg("longitude", "latitude")
     df_Anon_Avg = df_Anon_Avg.withColumnRenamed("avg(longitude)", "avg_longitude")
     df_Anon_Avg = df_Anon_Avg.withColumnRenamed("avg(latitude)", "avg_latitude")
 
-    print(">> Regroupement")
+    # print(df_Anon_Avg.head(2))
+    # print(df_Anon_DistMax.head(2))
 
-    df_Origin_new = df_Origin_Avg.join(df_Origin_DistMax, ["identifiant","timestamp"], "inner")
-    print(df_Origin_new.head(2))
+    df_Anon_Avg = df_Anon_Avg.toPandas()
+    df_Anon_DistMax = df_Anon_DistMax.toPandas()
 
-    df_Anon_new = df_Anon_Avg.join(df_Anon_DistMax, ["identifiant_Anon","timestamp"], "inner")
-    print(df_Anon_new.head(2))
+    df_Origin_Avg = df_Origin_Avg.toPandas()
+    df_Origin_DistMax = df_Origin_DistMax.toPandas()
 
-    print("> Fin des calculs des distances max et moyennes par semaine")
+    print("\t>> Regroupement")
+
+    # df_Origin_new = df_Origin_Avg.join(df_Origin_DistMax, ["identifiant", "timestamp"], "inner")
+    # print(df_Origin_new.head(2))
+
+    # df_Anon_new = df_Anon_Avg.join(df_Anon_DistMax, ["identifiant_Anon", "timestamp"], "inner")
+    # print(df_Anon_new.head(2))
+
+    df_Origin = df_Origin_Avg.merge(df_Origin_DistMax, on=["identifiant", "timestamp"], how='inner')
+    df_Anon = df_Anon_Avg.merge(df_Anon_DistMax, on=["identifiant_Anon", "timestamp"], how='inner')
+
+    print("\t\t>>> Nombre de Lignes dans Origin : " + str(len(df_Origin.index)))
+    print("\t\t>>> Nombre de Lignes dans Anon : " + str(len(df_Anon.index)))
+
+    print("> Fin des calculs des distances max et moyennes par semaine\n")
+
+    print("> Réidentification")
+
+    df_Origin['avg_longitude'] = np.round(df_Origin['avg_longitude'], decimals=precision)
+    df_Origin['avg_latitude'] = np.round(df_Origin['avg_latitude'], decimals=precision)
+    df_Origin['max_distance'] = np.round(df_Origin['max_distance'], decimals=precision)
+
+    df_Anon['avg_longitude'] = np.round(df_Anon['avg_longitude'], decimals=precision)
+    df_Anon['avg_latitude'] = np.round(df_Anon['avg_latitude'], decimals=precision)
+    df_Anon['max_distance'] = np.round(df_Anon['max_distance'], decimals=precision)
+
+    df_merge = df_Origin.merge(df_Anon, on=['timestamp','avg_longitude', 'avg_latitude', 'max_distance'], how='inner')
+
+    print(df_merge.info())
 
     spark.stop()
 
 
 # sort_table("autofill_476_clean.csv","2015-03-27 13:13:55") #* K E E P    O U T *
 # identification("autofill_476_clean.csv", "ReferenceINSA.csv")
-identificationV4("autofill_444_clean.csv", "ReferenceINSA.csv")
+identificationV4("autofill_444_clean.csv", "ReferenceINSA.csv", precision=2)
