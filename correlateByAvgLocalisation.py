@@ -2,7 +2,7 @@ from functools import reduce
 
 from pandas import DataFrame
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import avg, weekofyear, abs, month
+from pyspark.sql.functions import avg, weekofyear, abs, col, month, count, first
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 import CSVManager
 spark = SparkSession.builder.appName("CalculatingAveragePosition").getOrCreate()
@@ -53,18 +53,19 @@ def correlateByAvgLocalisation(Ogfile, Anonymfile, precision):
     return filtered_result_df
     #CSVManager.writeTabCSVFile(filtered_result_df.toPandas(),"correlationByAvg2")
 
-# column must be: idOd, week, idAno
+# column must be: idOg, week, idAno
 def merge_dataframes(dataframes_list):
     UniqList = []
     for dataframe in dataframes_list:
-        Uniqdata = dataframe.dropDuplicates(subset = ["idAno","week"])
+        dataframe = dataframe.groupBy("week","idAno").agg(count("*").alias("count"), first("idOG").alias("idOG"))
+        Uniqdata = dataframe.where(col("count") == 1)
         UniqList.append(Uniqdata)
     print(">after selecting uniques list of values")
     merged_df = reduce(lambda df1, df2: df1.union(df2), UniqList)
     print(">after merging list into one dataframe")
     unique_merged_df = merged_df.dropDuplicates(subset = ["idAno","week"])
     print(">keeping distinct values")
-    return unique_merged_df
+    return unique_merged_df.select("idOG","week","idAno")
 
 DataframeList = []
 TestPrecision = [0.001, 0.05, 0.0005]
