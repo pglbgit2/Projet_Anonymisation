@@ -126,8 +126,6 @@ def identificationV2(Anon_file, Original_file):
     print("> Suppression des colonnes/éléments indésirables.")
     df_merge.drop(['Long', 'Lat'], axis=1, inplace=True)
 
-
-
     # Ne garder que la date Année-Mois (Transformer la date du jour en Année-Numéro_Semaine)
     """print(">> Ignorez l'alerte ci-dessous")
     liste_date = df_merge['Date']
@@ -165,23 +163,22 @@ def identificationV2(Anon_file, Original_file):
 
         json_rendu[identifiant][date] = iden_Anon
 
-    verif = {"2015-10":False, "2015-11":False, "2015-12":False, "2015-13":False, "2015-14":False, "2015-15":False, "2015-16":False, "2015-17":False, "2015-18":False,
-                 "2015-19":False, "2015-20":False}
+    verif = {"2015-10": False, "2015-11": False, "2015-12": False, "2015-13": False, "2015-14": False, "2015-15": False,
+             "2015-16": False, "2015-17": False, "2015-18": False,
+             "2015-19": False, "2015-20": False}
     for id in json_rendu.keys():
         for j in json_rendu[id].keys():
             if j in semainesUtils:
                 verif[j] = True
 
-        for j in range(0,9,1):
+        for j in range(0, 9, 1):
             asso = verif.popitem()
-            if asso[1] is False :
+            if asso[1] is False:
                 json_rendu[id][asso[0]] = None
-
 
         verif = {"2015-10": False, "2015-11": False, "2015-12": False, "2015-13": False, "2015-14": False,
                  "2015-15": False, "2015-16": False, "2015-17": False, "2015-18": False,
                  "2015-19": False, "2015-20": False}
-
 
     json_out = json.dumps(json_rendu)
     with open(Anon_file[:-4] + "_Identification.json", "w") as outfile:
@@ -316,6 +313,92 @@ def identificationV3(Anon_file, Original_file):
     # print(df_merge.head(4))
 
 
+def identificationV4(Anon_file, Original_file, precision=None, ref_geo=(45.764043, 4.835659)):
+    # Precision Decimal par défaut : 2
+    if precision is None:
+        precision = 2
+
+    spark = SparkSession.builder.appName("DistanceCalculations").getOrCreate()
+
+    schemaOriginal = StructType([
+        StructField("identifiant", StringType(), True),
+        StructField("timestamp", StringType(), True),
+        StructField("longitude", DoubleType(), True),
+        StructField("latitude", DoubleType(), True)
+    ])
+
+    schemaAnon = StructType([
+        StructField("identifiant_Anon", StringType(), True),
+        StructField("timestamp", StringType(), True),
+        StructField("longitude", DoubleType(), True),
+        StructField("latitude", DoubleType(), True)
+    ])
+
+    print("\n> Chargement des fichiers")
+
+    df_Origin = spark.read.csv(Original_file, sep="\t", header=False, schema=schemaOriginal)
+    df_Anon = spark.read.csv(Anon_file, sep="\t", header=False, schema=schemaAnon)
+
+    print("> Fin du chargement des fichiers")
+    print("> Calcul des distances à la référence")
+
+    df_Origin = df_Origin.withColumn("distance_to_reference",
+                                     expr("SQRT(POW(latitude - {0}, 2) + POW(longitude - {1}, 2))".format(
+                                         ref_geo[0],
+                                         ref_geo[1]))
+                                     )
+
+    df_Anon = df_Anon.withColumn("distance_to_reference",
+                                 expr("SQRT(POW(latitude - {0}, 2) + POW(longitude - {1}, 2))".format(
+                                     ref_geo[0],
+                                     ref_geo[1]))
+                                 )
+
+    print("> Mise en date par semaine")
+    df_Origin = df_Origin.withColumn("timestamp", col("timestamp").substr(6, 5))
+    # df_Origin['timestamp'] = df_Origin['timestamp'].str[5:10]
+    df_Origin = df_Origin.na.replace(semaine2015V3)
+    # df_Origin['timestamp'] = df_Origin['timestamp'].replace(semaine2015V3)
+    # print(df_Origin.head(5))
+
+    df_Anon = df_Anon.withColumn("timestamp", col("timestamp").substr(6, 5))
+    df_Anon = df_Anon.na.replace(semaine2015V3)
+
+    print("> Fin de la mise en date par semaine")
+
+    print("> Calcul des distances max et des moyennes de longitude/latitude (Sur les 2 tables Origin et Anon)")
+
+    print(">> Calcul des distances max par semaine sur Origin")
+    df_Origin_DistMax = df_Origin.groupBy(["identifiant", "timestamp"]).max("distance_to_reference")
+    df_Origin_DistMax = df_Origin_DistMax.withColumnRenamed("max(distance_to_reference)", "max_distance")
+
+    print(">> Calcul des moyennes de longitude/latitude sur Origin")
+    df_Origin_Avg = df_Origin.groupBy(["identifiant", "timestamp"]).avg("longitude", "latitude")
+    df_Origin_Avg = df_Origin_Avg.withColumnRenamed("avg(longitude)", "avg_longitude")
+    df_Origin_Avg = df_Origin_Avg.withColumnRenamed("avg(latitude)", "avg_latitude")
+
+    print(">> Calcul des distances max par semaine sur Anon")
+    df_Anon_DistMax = df_Anon.groupBy(["identifiant_Anon", "timestamp"]).max("distance_to_reference")
+    df_Anon_DistMax = df_Anon_DistMax.withColumnRenamed("max(distance_to_reference)", "max_distance")
+
+    print(">> Calcul des moyennes de longitude/latitude sur Anon")
+    df_Anon_Avg = df_Anon.groupBy(["identifiant_Anon", "timestamp"]).avg("longitude", "latitude")
+    df_Anon_Avg = df_Anon_Avg.withColumnRenamed("avg(longitude)", "avg_longitude")
+    df_Anon_Avg = df_Anon_Avg.withColumnRenamed("avg(latitude)", "avg_latitude")
+
+    print(">> Regroupement")
+
+    df_Origin_new = df_Origin_Avg.join(df_Origin_DistMax, ["identifiant","timestamp"], "inner")
+    print(df_Origin_new.head(2))
+
+    df_Anon_new = df_Anon_Avg.join(df_Anon_DistMax, ["identifiant_Anon","timestamp"], "inner")
+    print(df_Anon_new.head(2))
+
+    print("> Fin des calculs des distances max et moyennes par semaine")
+
+    spark.stop()
+
+
 # sort_table("autofill_476_clean.csv","2015-03-27 13:13:55") #* K E E P    O U T *
 # identification("autofill_476_clean.csv", "ReferenceINSA.csv")
-identificationV2("autofill_444_clean.csv", "ReferenceINSA.csv")
+identificationV4("autofill_444_clean.csv", "ReferenceINSA.csv")
