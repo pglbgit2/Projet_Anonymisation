@@ -78,9 +78,11 @@ merged.withColumnRenamed("idOG", "ID")    # 3 colonnes : ID, Date, ID_Anon
 merged.withColumnRenamed("week", "Date")
 merged.withColumnRenamed("idAno", "ID_Anon")
 mergedpd = merged.toPandas()
-idlist = df1.select("identifiant").distinct()
-idlist = idlist.toPandas().values.tolist()
-
+idlisttab = df1.select("identifiant").distinct()
+idlisttab = idlisttab.toPandas().values.tolist()
+idlist = []
+for id in idlisttab[0]:
+    idlist.append(id)
 json_out = tojson.dataframeToJSON(mergedpd,True, idlist)
 with open("identifiedautofill.json", "w") as outfile:
     outfile.write(json_out)
