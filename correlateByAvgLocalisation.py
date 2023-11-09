@@ -1,10 +1,10 @@
 from functools import reduce
 
-from pandas import DataFrame
 from pyspark.sql import SparkSession
 from pyspark.sql.functions import avg, weekofyear, abs, col, month, count, first
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 import CSVManager
+import tojson
 spark = SparkSession.builder.appName("CalculatingAveragePosition").getOrCreate()
 
 
@@ -15,14 +15,15 @@ schema = StructType([
     StructField("latitude", DoubleType(), True)
 ])
 print(">after schema definition")
+# Charger les deux DataFrames à partir des fichiers ou de toute autre source
+df1 = spark.read.csv("default.csv", header=False, schema=schema, sep='\t')
+print(">after reading original file")
 
-def correlateByAvgLocalisation(Ogfile, Anonymfile, precision):
-    # Charger les deux DataFrames à partir des fichiers ou de toute autre source
-    df1 = spark.read.csv(Ogfile, header=False, schema=schema, sep='\t')
-    print(">after reading original file")
+df2 = spark.read.csv("../autofill_444_clean.csv", header=False, schema=schema, sep='\t' )
+print(">after reading anonymized file")
 
-    df2 = spark.read.csv(Anonymfile, header=False, schema=schema, sep='\t' )
-    print(">after reading anonymized file")
+def correlateByAvgLocalisation(df1, df2, precision):
+    
 
 
     # Extraire le mois du timestamp
@@ -70,7 +71,17 @@ def merge_dataframes(dataframes_list):
 DataframeList = []
 TestPrecision = [0.001, 0.05, 0.0005]
 for p in TestPrecision:
-    DataframeList.append(correlateByAvgLocalisation("default.csv", "../autofill_444_clean.csv", p))
+    DataframeList.append(correlateByAvgLocalisation(df1, df2, p))
 merged = merge_dataframes(DataframeList)
 print(">before writing...")
-CSVManager.writeTabCSVFile(merged.toPandas(),"MergedcorrelationByAvg")
+merged.withColumnRenamed("idOG", "ID")    # 3 colonnes : ID, Date, ID_Anon
+merged.withColumnRenamed("week", "Date")
+merged.withColumnRenamed("idAno", "ID_Anon")
+mergedpd = merged.toPandas()
+idlist = df1.select("identifiant").distinct()
+idlist = idlist.toPandas().values.tolist()
+
+json_out = tojson.dataframeToJSON(mergedpd,True, idlist)
+with open("identifiedautofill.json", "w") as outfile:
+    outfile.write(json_out)
+#CSVManager.writeTabCSVFile(merged.toPandas(),"MergedcorrelationByAvg")
