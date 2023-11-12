@@ -38,14 +38,14 @@ def equal(element1, element2, limite):
 def dataframeToJSON(Dataframe, keep_null=False, liste_id=None):
     # 3 colonnes : ID, Date, ID_Anon
     # Ligne type : 1, 15, 126
-
+    print(liste_id)
     Liste_finale = Dataframe.values.tolist()
     json_rendu = dict()
 
     for i in range(0, len(Liste_finale) - 1):
 
         identifiant = Liste_finale[i][0]
-        date = "2015-" + Liste_finale[i][1]
+        date = Liste_finale[i][1]
         iden_Anon = [str(Liste_finale[i][2])]
 
         if not isKey(json_rendu, identifiant):
@@ -82,13 +82,20 @@ def dataframeToJSON(Dataframe, keep_null=False, liste_id=None):
                 if id not in json_rendu.keys():
                     for j in range(0,9,1):
                         date_2015 = verif.popitem()
-                        json_rendu[id][date_2015] = None
+                        # print("id = " + id)
+                        # print("date = " + str(date_2015))
+                        if id not in json_rendu:
+                            json_rendu[id] = {}
+                        json_rendu[id][date_2015[0]] = None
 
                     verif = {"2015-10": False, "2015-11": False, "2015-12": False, "2015-13": False, "2015-14": False,
                              "2015-15": False, "2015-16": False, "2015-17": False, "2015-18": False,
                              "2015-19": False, "2015-20": False}
 
-    json_out = json.dumps(json_rendu)
+        # for i in range(0,111):
+        #     if i not in 
+
+    json_out = json.dumps(json_rendu, indent=4)
 
     return json_out
 
@@ -493,6 +500,16 @@ def identificationV4(Anon_file, Original_file, precision=None, ref_geo=(45.76404
     df_merge = df_Origin.merge(df_Anon, on=['timestamp','avg_longitude', 'avg_latitude', 'max_distance'], how='inner')
 
     print(df_merge.info())
+    idlisttab = spark.createDataFrame(df_Origin).select("identifiant").distinct()
+    idlisttab = idlisttab.toPandas().values.tolist()
+    idlist = []
+    for id in idlisttab:
+        idlist.append(id[0])
+    print(df_merge.head(6))
+    df_merge.drop(['avg_latitude', 'avg_longitude', 'max_distance'], axis=1, inplace=True)
+    json_out = dataframeToJSON(df_merge,True, idlist)
+    with open("identifiedautofill444.json", "w") as outfile:
+        outfile.write(json_out)
 
     spark.stop()
 
