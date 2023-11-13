@@ -102,8 +102,8 @@ mergedpd = merged.toPandas()
 idlisttab = df1.select("idOG").distinct()
 idlisttab = idlisttab.toPandas().values.tolist()
 idlist = []
-for id in idlisttab[0]:
-    idlist.append(id)
+for id in idlisttab:
+    idlist.append(id[0])
 json_out = tojson.dataframeToJSON(mergedpd,True, idlist)
 with open("identifiedautofill.json", "w") as outfile:
     outfile.write(json_out)
