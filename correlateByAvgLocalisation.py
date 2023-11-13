@@ -1,7 +1,7 @@
 from functools import reduce
 
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import avg, weekofyear, abs, col, month, count, first
+from pyspark.sql.functions import avg, weekofyear, abs, col, month, count, first, max
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 import CSVManager
 import tojson
@@ -16,10 +16,10 @@ schema = StructType([
 ])
 print(">after schema definition")
 # Charger les deux DataFrames à partir des fichiers ou de toute autre source
-df1 = spark.read.csv("default.csv", header=False, schema=schema, sep='\t')
+df1 = spark.read.csv("../default.csv", header=False, schema=schema, sep='\t')
 print(">after reading original file")
 
-df2 = spark.read.csv("../autofill_444_clean.csv", header=False, schema=schema, sep='\t' )
+df2 = spark.read.csv("../ALANOZY_545.csv", header=False, schema=schema, sep='\t' )
 print(">after reading anonymized file")
 df1 = df1.withColumn("week", weekofyear("timestamp"))
 df2 = df2.withColumn("week", weekofyear("timestamp"))
@@ -65,22 +65,28 @@ def merge_dataframes(dataframes_list):
     for dataframe in dataframes_list:
         dataframe = dataframe.distinct()
         dataframe = dataframe.groupBy("week","idAno").agg(count("*").alias("count"), first("idOG").alias("idOG"))
-        Uniqdata = dataframe.where(col("count") == 1)
-        UniqList.append(Uniqdata)
+        #Uniqdata = dataframe.where(col("count") == 1)
+        UniqList.append(dataframe)
+
     print(">after selecting uniques list of values")
     merged_df = reduce(lambda df1, df2: df1.union(df2), UniqList)
-    print(">after merging list into one dataframe")
-    unique_merged_df = merged_df.dropDuplicates(["idAno","week"])
-    print(">keeping distinct values")
-    return unique_merged_df.select("idOG","week","idAno")
+    print(">after merging lists into one dataframe")
+    merged_df = merged_df.groupBy("idOG","week","idAno").agg(count("*").alias("countVal"))
+    merged_df = merged_df.groupBy("idOG","week","idAno").agg(max("countVal").alias("max_count"), first("countVal").alias("countVal"))
+    merged_df = merged_df.where(col("countVal") == col("max_count"))
+    print("> Keeping most probable value")
+    merged_df = merged_df.dropDuplicates(["idAno","week"])
+    #print(">keeping distinct values")
+    return merged_df.select("idOG","week","idAno")
 
 DataframeList = []
 TestPrecision = [0.0001, 0.0003, 0.0005, 0.0007, 0.001, 0.003]
 limitList = [5,0.1,0.005,0.001]
 for p in TestPrecision:
-    for l in limitList:
-        DataframeList.append(correlateByAvgDistanceFromRefPointWithLimit(df1,df2,l,p))
     DataframeList.append(correlateByAvgLocalisation(df1, df2, p))
+    for l in limitList:
+        limDf = correlateByAvgDistanceFromRefPointWithLimit(df1,df2,l,p)
+        DataframeList.append(limDf)
     
 
 print("before first merging")
