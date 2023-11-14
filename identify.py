@@ -183,8 +183,8 @@ def identificationV2(Anon_file, Original_file):
     # Arrondir Long et Lat du Origin au centième.
     # print(data_Origin.head(8))
     print("> Arrondissement des coordonnées géographiques.")
-    data_Origin['Long'] = np.round(data_Origin['Long'], decimals=2)
-    data_Origin['Lat'] = np.round(data_Origin['Lat'], decimals=2)
+    data_Origin['Long'] = np.round(data_Origin['Long'], decimals=15)
+    data_Origin['Lat'] = np.round(data_Origin['Lat'], decimals=15)
     # print(data_Origin.head(8))
 
     print("> Jointure interne des Data-Frames Origin et Anon. (Cela peut prendre un petit moment)")
@@ -222,37 +222,44 @@ def identificationV2(Anon_file, Original_file):
     df_merge.sort_values(by=['ID'], axis=0)
     Liste_finale = df_merge.values.tolist()
 
-    for i in range(0, len(df_merge['ID']) - 1):
-
-        identifiant = Liste_finale[i][0]
-        date = Liste_finale[i][1]
-        iden_Anon = [str(Liste_finale[i][2])]
-
-        if not isKey(json_rendu, identifiant):
-            json_rendu[identifiant] = dict()
-
-        json_rendu[identifiant][date] = iden_Anon
-
-    verif = {"2015-10": False, "2015-11": False, "2015-12": False, "2015-13": False, "2015-14": False, "2015-15": False,
-             "2015-16": False, "2015-17": False, "2015-18": False,
-             "2015-19": False, "2015-20": False}
-    for id in json_rendu.keys():
-        for j in json_rendu[id].keys():
-            if j in semainesUtils:
-                verif[j] = True
-
-        for j in range(0, 9, 1):
-            asso = verif.popitem()
-            if asso[1] is False:
-                json_rendu[id][asso[0]] = None
-
-        verif = {"2015-10": False, "2015-11": False, "2015-12": False, "2015-13": False, "2015-14": False,
-                 "2015-15": False, "2015-16": False, "2015-17": False, "2015-18": False,
-                 "2015-19": False, "2015-20": False}
-
-    json_out = json.dumps(json_rendu)
-    with open(Anon_file[:-4] + "_Identification.json", "w") as outfile:
+    idlisttab = data_Origin['ID'].unique()
+    idlist = idlisttab.tolist()
+    print(idlist)
+    json_out = dataframeToJSON(df_merge,True, idlist)
+    with open("identifiedthe437.json", "w") as outfile:
         outfile.write(json_out)
+
+    # for i in range(0, len(df_merge['ID']) - 1):
+
+    #     identifiant = Liste_finale[i][0]
+    #     date = Liste_finale[i][1]
+    #     iden_Anon = [str(Liste_finale[i][2])]
+
+    #     if not isKey(json_rendu, identifiant):
+    #         json_rendu[identifiant] = dict()
+
+    #     json_rendu[identifiant][date] = iden_Anon
+
+    # verif = {"2015-10": False, "2015-11": False, "2015-12": False, "2015-13": False, "2015-14": False, "2015-15": False,
+    #          "2015-16": False, "2015-17": False, "2015-18": False,
+    #          "2015-19": False, "2015-20": False}
+    # for id in json_rendu.keys():
+    #     for j in json_rendu[id].keys():
+    #         if j in semainesUtils:
+    #             verif[j] = True
+
+    #     for j in range(0, 9, 1):
+    #         asso = verif.popitem()
+    #         if asso[1] is False:
+    #             json_rendu[id][asso[0]] = None
+
+    #     verif = {"2015-10": False, "2015-11": False, "2015-12": False, "2015-13": False, "2015-14": False,
+    #              "2015-15": False, "2015-16": False, "2015-17": False, "2015-18": False,
+    #              "2015-19": False, "2015-20": False}
+
+    # json_out = json.dumps(json_rendu)
+    # with open(Anon_file[:-4] + "_Identification.json", "w") as outfile:
+    #     outfile.write(json_out)
 
     # PROFIT !
 
@@ -515,5 +522,5 @@ def identificationV4(Anon_file, Original_file, precision=None, ref_geo=(45.76404
 
 
 # sort_table("autofill_476_clean.csv","2015-03-27 13:13:55") #* K E E P    O U T *
-# identification("autofill_476_clean.csv", "ReferenceINSA.csv")
-identificationV4("autofill_444_clean.csv", "ReferenceINSA.csv", precision=2)
+identificationV2("the_437_clean.csv", "ReferenceINSA.csv")
+# identificationV4("autofill_444_clean.csv", "ReferenceINSA.csv", precision=2)
