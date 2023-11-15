@@ -183,8 +183,11 @@ def identificationV2(Anon_file, Original_file):
     # Arrondir Long et Lat du Origin au centième.
     # print(data_Origin.head(8))
     print("> Arrondissement des coordonnées géographiques.")
-    data_Origin['Long'] = np.round(data_Origin['Long'], decimals=15)
-    data_Origin['Lat'] = np.round(data_Origin['Lat'], decimals=15)
+    data_Origin['Long'] = np.round(data_Origin['Long'], decimals=5)
+    data_Origin['Lat'] = np.round(data_Origin['Lat'], decimals=5)
+
+    data_Anon['Long'] = np.round(data_Origin['Long'], decimals=5)
+    data_Anon['Lat'] = np.round(data_Origin['Lat'], decimals=5)
     # print(data_Origin.head(8))
 
     print("> Jointure interne des Data-Frames Origin et Anon. (Cela peut prendre un petit moment)")
@@ -226,7 +229,7 @@ def identificationV2(Anon_file, Original_file):
     idlist = idlisttab.tolist()
     print(idlist)
     json_out = dataframeToJSON(df_merge,True, idlist)
-    with open("identifiedthe437.json", "w") as outfile:
+    with open("identifiedanonym212_407.json", "w") as outfile:
         outfile.write(json_out)
 
     # for i in range(0, len(df_merge['ID']) - 1):
@@ -515,12 +518,12 @@ def identificationV4(Anon_file, Original_file, precision=None, ref_geo=(45.76404
     print(df_merge.head(6))
     df_merge.drop(['avg_latitude', 'avg_longitude', 'max_distance'], axis=1, inplace=True)
     json_out = dataframeToJSON(df_merge,True, idlist)
-    with open("identifiedautofill444.json", "w") as outfile:
+    with open("identifiedanonym212_407.json", "w") as outfile:
         outfile.write(json_out)
 
     spark.stop()
 
 
 # sort_table("autofill_476_clean.csv","2015-03-27 13:13:55") #* K E E P    O U T *
-identificationV2("the_437_clean.csv", "ReferenceINSA.csv")
+identificationV2("anonym212_407_clean.csv", "ReferenceINSA.csv")
 # identificationV4("autofill_444_clean.csv", "ReferenceINSA.csv", precision=2)
