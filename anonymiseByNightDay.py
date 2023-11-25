@@ -35,12 +35,12 @@ schema = StructType([
     StructField("latitude", DoubleType(), True)
 ])
 print(">after schema definition")
-df = spark.read.csv("tableau.csv", header=False, schema=schema, sep=',')
+df = spark.read.csv("../default.csv", header=False, schema=schema, sep='\t')
 print(">after reading original file")
 
 
-dfDay = df.filter((hour(df["timestamp"]) >= 6) & (hour(df["timestamp"]) < 18))
-dfNight = df.filter((hour(df["timestamp"]) < 6) | (hour(df["timestamp"]) >= 18))
+dfDay = df.filter((hour(df["timestamp"]) >= 6) & (hour(df["timestamp"]) < 22))
+dfNight = df.filter((hour(df["timestamp"]) < 6) | (hour(df["timestamp"]) >= 22))
 print(">after day and night dataframe")
 
 avg_jour = dfDay.groupBy("id","timestamp").agg(avg("longitude").alias("avg_longitude"), avg("latitude").alias("avg_latitude"))
