@@ -8,10 +8,23 @@ import CSVManager
 import pandas
 
 def generateString():
-    size = 5
+    size = 7
     autorizedChar = string.ascii_letters + string.digits  
     generatedString = ''.join(random.choice(autorizedChar) for _ in range(size))
     return generatedString
+
+def anonymise(fileToReadName, fileToWriteName):
+    tab = CSVManager.readTabCSVFile(fileToReadName)
+    idAno = {}
+    for value in tab:
+        if(value[0] not in idAno):
+            pseudo = generateString()
+            idAno[value[0]] = pseudo
+            value[0] = pseudo
+        else:
+            value[0] = idAno[value[0]]
+    CSVManager.writeTabCSVFile(tab,fileToWriteName)
+
 
 spark = SparkSession.builder.appName("CalculatingDayNightPosition").getOrCreate()
 
@@ -34,7 +47,7 @@ avg_jour = dfDay.groupBy("id","timestamp").agg(avg("longitude").alias("avg_longi
 avg_nuit = dfNight.groupBy("id","timestamp").agg(avg("longitude").alias("avg_longitude"), avg("latitude").alias("avg_latitude"))
 print(">after average location")
 
-variation = 0.001
+variation = 0.0001
 values_jour = dfDay.join(avg_jour, ["id", "timestamp"]).withColumn("new_longitude", col("avg_longitude") + randn(seed=23)*variation).withColumn("new_latitude", col("avg_latitude") + randn(seed=42)*variation).drop("avg_longitude", "avg_latitude", "longitude", "latitude")
 values_nuit = dfNight.join(avg_nuit, ["id", "timestamp"]).withColumn("new_longitude", col("avg_longitude") + randn(seed=34)*variation).withColumn("new_latitude", col("avg_latitude") + randn(seed=42)*variation).drop("avg_longitude", "avg_latitude", "longitude", "latitude")
 print(">after generating new values")
@@ -44,13 +57,12 @@ almost_ready_to_get_anonymized = almost_ready_to_get_anonymized.withColumn("long
 almost_ready_to_get_anonymized = almost_ready_to_get_anonymized.withColumn("latitude", col("new_latitude"))
 print(">after union")
 
+
 ready_to_be_anonymised = almost_ready_to_get_anonymized.groupBy("id","timestamp","longitude","latitude").agg(weekofyear("timestamp").alias("week"))
 print(">renaming columns")
 
-generate_id = udf(lambda: generateString(), StringType())
-print(">saving generating function into pyspark")
 
-anonymized_tab = ready_to_be_anonymised.groupBy("week").agg(generate_id().alias("identifiant"), first("timestamp").alias("timestamp"),first("longitude").alias("longitude"),first("latitude").alias("latitude"))
-anonymized_tab = anonymized_tab.drop("week","id")
-print(">Anonymized, writing...")
-CSVManager.writeTabCSVFile(anonymized_tab.toPandas(), "anonymFrangipane.csv")
+ready_to_be_anonymised = ready_to_be_anonymised.drop("week")
+print(">after droping week")
+CSVManager.writeTabCSVFile(ready_to_be_anonymised.toPandas(), "NOTANONYM.csv")
+anonymise("NOTANONYM.csv", "anonymFrangipane.csv")
