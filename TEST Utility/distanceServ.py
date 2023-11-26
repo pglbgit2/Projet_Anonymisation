@@ -36,7 +36,6 @@ def main(nona_reader, anon_reader, parameters={"dx":0.1}):
     utility = 0
     line_utility= 0
     filesize = 0
-    
 
     #read the files and calcul
     for lineAno, lineNonAno in zip(nona_reader, anon_reader):
@@ -48,6 +47,9 @@ def main(nona_reader, anon_reader, parameters={"dx":0.1}):
             line_utility += calcul_utility(diff)
         else:
             line_utility += 0
+
+    print(filesize)
+    print(line_utility)
     utility = line_utility / filesize
     return utility
 
