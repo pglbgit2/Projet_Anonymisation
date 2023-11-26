@@ -7,19 +7,22 @@ from pyspark.sql.types import StructType, StructField, StringType, DoubleType, T
 import CSVManager
 import pandas
 
-def generateString():
-    size = 7
-    autorizedChar = string.ascii_letters + string.digits  
-    generatedString = ''.join(random.choice(autorizedChar) for _ in range(size))
-    return generatedString
+# def generateString():
+#     size = 7
+#     autorizedChar = string.ascii_letters + string.digits  
+#     generatedString = ''.join(random.choice(autorizedChar) for _ in range(size))
+#     return generatedString
 
 
 def readfile(path: str):
-    spark = SparkSession.builder.appName("CalculatingDayNightPosition").getOrCreate()
+    spark = SparkSession.builder.appName("CalculatingDayNightPosition")\
+    .config("spark.driver.memory", "8g") \
+    .config("spark.executor.memory", "8g") \
+    .getOrCreate()
 
     schema = StructType([
         StructField("id", StringType(), True),
-        StructField("timestamp", TimestampType(), True),
+        StructField("timestamp", StringType(), True),
         StructField("longitude", DoubleType(), True),
         StructField("latitude", DoubleType(), True)
     ])
@@ -50,22 +53,24 @@ def anonymize_but_not_completely(startOfTheDay, startOfTheNight, df, variation, 
 
     ready_to_be_anonymised = ready_to_be_anonymised.drop("week")
     print(">after droping week")
-    CSVManager.writeTabCSVFile(ready_to_be_anonymised.toPandas(), path)
+    # CSVManager.writeTabCSVFile(ready_to_be_anonymised.toPandas(), path)
+    ready_to_be_anonymised.coalesce(1).write.csv(path, header=False,  mode="overwrite", sep="\t")
 
-def pseudonymize(fileToReadName, fileToWriteName):
-    tab = CSVManager.readTabCSVFile(fileToReadName)
-    idAno = {}
-    for value in tab:
-        if(value[0] not in idAno):
-            pseudo = generateString()
-            idAno[value[0]] = pseudo
-            value[0] = pseudo
-        else:
-            value[0] = idAno[value[0]]
-    CSVManager.writeTabCSVFile(tab,fileToWriteName)
+# def pseudonymize(fileToReadName, fileToWriteName):
+#     tab = CSVManager.readTabCSVFile(fileToReadName)
+#     idAno = {}
+#     for value in tab:
+#         if(value[0] not in idAno):
+#             pseudo = generateString()
+#             idAno[value[0]] = pseudo
+#             value[0] = pseudo
+#         else:
+#             value[0] = idAno[value[0]]
+#     CSVManager.writeTabCSVFile(tab,fileToWriteName)
+    
 
 if __name__=='__main__':
     df = readfile("ReferenceINSA.csv")
     print(">after reading original file")
     anonymize_but_not_completely(6, 22, df, 0.0001, "nopseudo.csv")
-    pseudonymize("nopseudo.csv", "anonymFrangipane.csv")
+    # pseudonymize("nopseudo.csv", "anonymFrangipane.csv")
