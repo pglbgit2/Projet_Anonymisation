@@ -22,7 +22,7 @@ def readfile(path: str):
 
     schema = StructType([
         StructField("id", StringType(), True),
-        StructField("timestamp", StringType(), True),
+        StructField("timestamp", TimestampType(), True),
         StructField("longitude", DoubleType(), True),
         StructField("latitude", DoubleType(), True)
     ])
@@ -52,7 +52,8 @@ def anonymize_but_not_completely(startOfTheDay, startOfTheNight, df, variation, 
 
  
     # CSVManager.writeTabCSVFile(ready_to_be_anonymised.toPandas(), path)
-    ready_to_be_anonymised.coalesce(1).write.csv(path, header=False,  mode="overwrite", sep="\t")
+    final = ready_to_be_anonymised.withColumn("timestamp", expr("substring(timestamp, 1, length(timestamp)-3) || ':00'"))
+    final.coalesce(1).write.csv(path, header=False,  mode="overwrite", sep="\t")
 
 # def pseudonymize(fileToReadName, fileToWriteName):
 #     tab = CSVManager.readTabCSVFile(fileToReadName)

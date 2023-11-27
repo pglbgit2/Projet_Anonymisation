@@ -6,7 +6,6 @@ import random
 
 def pseudonymize(fileToReadName, fileToWriteName):
     tab = CSVManager.readCorrectlyCSVFile(fileToReadName)
-    print(tab)
     idAno = {}
     for value in tab:
         if(value[0] not in idAno):

@@ -8,7 +8,7 @@ def readTabCSVFile(filename):
     return pd.read_csv(filename).values
 
 def readCorrectlyCSVFile(filename):
-    return pd.read_csv(filename, sep="\t").values
+    return pd.read_csv(filename, sep="\t", header=None).values
     
 def writeCorrectlyCSVFile(tableau, filename):
-    pd.DataFrame.to_csv(pd.DataFrame(tableau),filename,index=False, header=True, sep="\t") 
+    pd.DataFrame.to_csv(pd.DataFrame(tableau),filename,index=False, header=False, sep="\t") 
