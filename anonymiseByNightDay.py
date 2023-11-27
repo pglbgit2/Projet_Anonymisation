@@ -2,7 +2,7 @@ import random
 import string
 from functools import reduce
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import avg, hour, randn, col, weekofyear, udf, first
+from pyspark.sql.functions import avg, hour, randn, col, weekofyear, monotonically_increasing_id
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 import CSVManager
 import pandas
@@ -35,7 +35,7 @@ schema = StructType([
     StructField("latitude", DoubleType(), True)
 ])
 print(">after schema definition")
-df = spark.read.csv("../default.csv", header=False, schema=schema, sep='\t')
+df = spark.read.csv("../default.csv", header=False, schema=schema, sep='\t').withColumn("numero_ligne", monotonically_increasing_id())
 print(">after reading original file")
 
 
@@ -43,8 +43,11 @@ dfDay = df.filter((hour(df["timestamp"]) >= 6) & (hour(df["timestamp"]) < 22))
 dfNight = df.filter((hour(df["timestamp"]) < 6) | (hour(df["timestamp"]) >= 22))
 print(">after day and night dataframe")
 
-avg_jour = dfDay.groupBy("id","timestamp").agg(avg("longitude").alias("avg_longitude"), avg("latitude").alias("avg_latitude"))
-avg_nuit = dfNight.groupBy("id","timestamp").agg(avg("longitude").alias("avg_longitude"), avg("latitude").alias("avg_latitude"))
+dfDay = dfDay.agg(weekofyear("timestamp").alias("week"))
+print(">adding week")
+
+avg_jour = dfDay.groupBy("id","week").agg(avg("longitude").alias("avg_longitude"), avg("latitude").alias("avg_latitude"))
+avg_nuit = dfNight.groupBy("id","week").agg(avg("longitude").alias("avg_longitude"), avg("latitude").alias("avg_latitude"))
 print(">after average location")
 
 variation = 0.0001
@@ -52,17 +55,10 @@ values_jour = dfDay.join(avg_jour, ["id", "timestamp"]).withColumn("new_longitud
 values_nuit = dfNight.join(avg_nuit, ["id", "timestamp"]).withColumn("new_longitude", col("avg_longitude") + randn(seed=34)*variation).withColumn("new_latitude", col("avg_latitude") + randn(seed=42)*variation).drop("avg_longitude", "avg_latitude", "longitude", "latitude")
 print(">after generating new values")
 
-almost_ready_to_get_anonymized = values_jour.union(values_nuit)
-almost_ready_to_get_anonymized = almost_ready_to_get_anonymized.withColumn("longitude", col("new_longitude"))
-almost_ready_to_get_anonymized = almost_ready_to_get_anonymized.withColumn("latitude", col("new_latitude"))
+ready_to_be_anonymised = values_jour.union(values_nuit)
+ready_to_be_anonymised = ready_to_be_anonymised.withColumn("longitude", col("new_longitude"))
+ready_to_be_anonymised = ready_to_be_anonymised.withColumn("latitude", col("new_latitude"))
 print(">after union")
 
-
-ready_to_be_anonymised = almost_ready_to_get_anonymized.groupBy("id","timestamp","longitude","latitude").agg(weekofyear("timestamp").alias("week"))
-print(">renaming columns")
-
-
-ready_to_be_anonymised = ready_to_be_anonymised.drop("week")
-print(">after droping week")
 CSVManager.writeTabCSVFile(ready_to_be_anonymised.toPandas(), "NOTANONYM.csv")
 anonymise("NOTANONYM.csv", "anonymFrangipane.csv")
