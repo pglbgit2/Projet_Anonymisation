@@ -2,7 +2,7 @@ import random
 import string
 from functools import reduce
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import avg, hour, randn, col, weekofyear, udf, first
+from pyspark.sql.functions import avg, expr, hour, randn, col, weekofyear, udf, first
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 import CSVManager
 import pandas
@@ -53,8 +53,11 @@ def anonymize_but_not_completely(startOfTheDay, startOfTheNight, df, variation, 
 
     ready_to_be_anonymised = ready_to_be_anonymised.drop("week")
     print(">after droping week")
+
+    not_final = ready_to_be_anonymised.sort("id", "timestamp", ascending=[True, True])
     # CSVManager.writeTabCSVFile(ready_to_be_anonymised.toPandas(), path)
-    ready_to_be_anonymised.coalesce(1).write.csv(path, header=False,  mode="overwrite", sep="\t")
+    final = not_final.withColumn("timestamp", expr("substring(timestamp, 1, length(timestamp)-3) || ':00'"))
+    final.coalesce(1).write.csv(path, header=False,  mode="overwrite", sep="\t")
 
 # def pseudonymize(fileToReadName, fileToWriteName):
 #     tab = CSVManager.readTabCSVFile(fileToReadName)
