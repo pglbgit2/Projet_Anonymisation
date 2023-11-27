@@ -22,7 +22,7 @@ def readfile(path: str):
 
     schema = StructType([
         StructField("id", StringType(), True),
-        StructField("timestamp", StringType(), True),
+        StructField("timestamp", TimestampType(), True),
         StructField("longitude", DoubleType(), True),
         StructField("latitude", DoubleType(), True)
     ])
