@@ -18,36 +18,36 @@ Utiliser la méthode de k-anonymisation sur les points of interest et l'abusée 
 	BDD anonymisé "kouign_amann.csv"
 
 #### Début :
-ChargerLaBDD(default.csv)
-pour tous les ids:
-	calculer des différents points of interest
-tant que tout les ids ne sont pas traité: // l'idée est de s'arrêter lorsque tout les couples sont soit dans groupe soit gérer autrement
-	pour tous les "places" identifié:
-		rassembler les couples (id;POI) qui sont proches (cf: distance utility)
-	pour tous les couples (id;POI) seuls:
-		//A comparer
-		soit:
-			aggrandir la marge de distance utility pour rattaché les autres MAIS il faut marqué les couples éloigné pour plus tard
-		soit:
-			les abandonner à leurs sorts (ils seront probablement réidentifié sans difficulté mais on sauve de l'efficacité)
-		soit:
-			rassembler une partie/tous les seuls ça nique l'utilité mais pollue l'identification (probablement à calculé le (bénéfice potentiel/pertes d'utilité)
-		// Si idée supplémentaire proposé ici:
+	ChargerLaBDD(default.csv)
+	pour tous les ids:
+		calculer des différents points of interest
+	tant que tout les ids ne sont pas traité: // l'idée est de s'arrêter lorsque tout les couples sont soit dans groupe soit gérer autrement
+		pour tous les "places" identifié:
+			rassembler les couples (id;POI) qui sont proches (cf: distance utility)
+		pour tous les couples (id;POI) seuls:
+			//A comparer
+			soit:
+				aggrandir la marge de distance utility pour rattaché les autres MAIS il faut marqué les couples éloigné pour plus tard
+			soit:
+				les abandonner à leurs sorts (ils seront probablement réidentifié sans difficulté mais on sauve de l'efficacité)
+			soit:
+				rassembler une partie/tous les seuls ça nique l'utilité mais pollue l'identification (probablement à calculé le (bénéfice potentiel/pertes d'utilité)
+			// Si idée supplémentaire proposé ici:
 
-//Modification minim à faire selon choix des solos
-pour tous les groupes:
-	calculer une moyenne de tout les POI SAUF LES MARQUÉS(cf couples seuls)
-	assigner à l'ensemble des lignes concerné par les couples, dans les valeurs de localisation, la moyenne calculé
-	
-//Finition
-arrondir les heures
+	//Modification minim à faire selon choix des solos
+	pour tous les groupes:
+		calculer une moyenne de tout les POI SAUF LES MARQUÉS(cf couples seuls)
+		assigner à l'ensemble des lignes concerné par les couples, dans les valeurs de localisation, la moyenne calculé
+		
+	//Finition
+	arrondir les heures
 
-//Encore une fois à comparer mais je pense que l'option A est mieux car plus utilisé par les autres groupes
-pour toutes les lignes qui ne sont pas prise en compte dans le calcule de POI:
-	//Option A
-	assigner DELL à l'id
-	//Option B
-	random(HEURE,JOUR,LOCALISATION)
-	//Option C
-	//trouver un moyen de monter le score d'utilité en ne détruisant pas l'anonymisation faites avant car les id sont en commun
+	//Encore une fois à comparer mais je pense que l'option A est mieux car plus utilisé par les autres groupes
+	pour toutes les lignes qui ne sont pas prise en compte dans le calcule de POI:
+		//Option A
+		assigner DELL à l'id
+		//Option B
+		random(HEURE,JOUR,LOCALISATION)
+		//Option C
+		//trouver un moyen de monter le score d'utilité en ne détruisant pas l'anonymisation faites avant car les id sont en commun
 #### Fin
