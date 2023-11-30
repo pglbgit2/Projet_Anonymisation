@@ -66,14 +66,16 @@ def anonymize_but_not_completely(startOfTheDay, startOfTheNight, df, variation, 
     almost_finished = ready_to_be_anonymised.withColumn("timestamp", expr("substring(timestamp, 1, length(timestamp)-3) || ':00'"))
     print(">rounded to minute")
 
+    sorted = almost_finished.sort("numero_ligne", ascending=[True])
+
     idPseudoDic = {}
     pseudonymise_udf =  udf(lambda z: pseudonymise(z, idPseudoDic), StringType())
-    anonymised = almost_finished.withColumn('anonymId', pseudonymise_udf(array('id','week')))
+    anonymised = sorted.withColumn('anonymId', pseudonymise_udf(array('id','week')))
 
     print(">after pseudonymisation")
 
-    final_sorted = anonymised.sort("numero_ligne", ascending=[True])
-    final_sorted.coalesce(1).write.csv(path, header=True,  mode="overwrite", sep="\t")
+    # final_sorted = anonymised.sort("numero_ligne", ascending=[True])
+    anonymised.coalesce(1).write.csv(path, header=True,  mode="overwrite", sep="\t")
 
 def pseudonymise(array, idAno):
     [id, week] = array
@@ -95,7 +97,7 @@ def pseudonymise(array, idAno):
 
 
 if __name__=='__main__':
-    df = readfile("../default.csv")
+    df = readfile("ReferenceINSA.csv")
     #df.show()
     print(">after reading original file")
     anonymize_but_not_completely(6, 22, df, 0.0001, "anonymFrangipane.csv")
