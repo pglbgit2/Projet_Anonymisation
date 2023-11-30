@@ -17,7 +17,7 @@ def NegativePositiveInteger():
 
 def generateString():
     size = 7
-    autorizedChar = string.ascii_letters + string.digits
+    autorizedChar = string.ascii_letters + string.digits  
     generatedString = ''.join(random.choice(autorizedChar) for _ in range(size))
     return generatedString
 
@@ -69,21 +69,23 @@ def anonymize_but_not_completely(startOfTheDay, startOfTheNight, df, variation, 
     # ready_to_be_anonymised = ready_to_be_anonymised.withColumn("latitude", col("new_latitude"))
     print(">after union")
 
-
+ 
     # CSVManager.writeTabCSVFile(ready_to_be_anonymised.toPandas(), path)
     almost_finished = ready_to_be_anonymised.withColumn("timestamp", expr("substring(timestamp, 1, length(timestamp)-3) || ':00'"))
     print(">rounded to minute")
+
+    sorted = almost_finished.sort("numero_ligne", ascending=[True])
 
     idPseudoDic = {}
     generatedStrings = set()
     generatedStrings.add('')
     pseudonymise_udf = udf(lambda z: pseudonymise(z, idPseudoDic, generatedStrings), StringType())
-    anonymised = almost_finished.withColumn('anonymId', pseudonymise_udf(array('id', 'week')))
+    anonymised = sorted.withColumn('anonymId', pseudonymise_udf(array('id', 'week')))
 
     print(">after pseudonymisation")
 
-    final_sorted = anonymised.sort("numero_ligne", ascending=[True])
-    final_sorted.coalesce(1).write.csv(path, header=True,  mode="overwrite", sep="\t")
+    # final_sorted = anonymised.sort("numero_ligne", ascending=[True])
+    anonymised.coalesce(1).write.csv(path, header=True,  mode="overwrite", sep="\t")
 
 def pseudonymise(array, idAno, generatedStrings):
     [id, week] = array
@@ -182,12 +184,7 @@ def anonymiseDayNightWeekend(startOfTheDay, startOfTheNight, df, variation, path
 
 
 if __name__=='__main__':
-    randn()
-
-    #df = readfile("../default.csv")
+    df = readfile("../default.csv")
     #df.show()
-    #print(">after reading original file")
-    #anonymize_but_not_completely(6, 22, df, 0.0001, "anonymFrangipane.csv")
-
-
-
+    print(">after reading original file")
+    anonymize_but_not_completely(6, 22, df, 0.0001, "anonymFrangipane.csv")
