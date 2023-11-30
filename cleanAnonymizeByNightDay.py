@@ -2,7 +2,7 @@ import random
 import string
 from functools import reduce
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import avg, hour, randn, col, weekofyear, monotonically_increasing_id, expr, udf, array
+from pyspark.sql.functions import avg, hour, randn, col, weekofyear, monotonically_increasing_id, expr, udf, array, lit
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 import CSVManager
 import pandas
@@ -35,8 +35,8 @@ def anonymize_but_not_completely(startOfTheDay, startOfTheNight, df, variation, 
     dfNight = df.filter((hour(df["timestamp"]) < startOfTheDay) | (hour(df["timestamp"]) >= startOfTheNight))
     print(">after day and night dataframe")
 
-    dfDay = dfDay.withColumn("week", weekofyear("timestamp"))
-    dfNight = dfNight.withColumn("week", weekofyear("timestamp"))
+    dfDay = dfDay.withColumn("week", weekofyear("timestamp")).withColumn("type", lit("day"))
+    dfNight = dfNight.withColumn("week", weekofyear("timestamp")).withColumn("type", lit("night"))
     
     print(">adding week")
 
