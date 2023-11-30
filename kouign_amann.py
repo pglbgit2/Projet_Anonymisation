@@ -11,7 +11,6 @@ def readfile(path: str):
     .config("spark.driver.memory", "8g") \
     .config("spark.executor.memory", "8g") \
     .getOrCreate()
-
     schema = StructType([
         StructField("id", StringType(), True),
         StructField("timestamp", TimestampType(), True),
@@ -21,6 +20,7 @@ def readfile(path: str):
     print(">after schema definition")
     return spark.read.csv(path, header=False, schema=schema, sep='\t').withColumn("numero_ligne", monotonically_increasing_id())
     
+
 def beurre(df):
     # TODO: Fixer la pseudonimization pour un couple (id; week)
     dfHome = df.filter((hour(df["timestamp"]) >= 22) & (hour(df["timestamp"]) < 6) & (df['timestamp'].cast('date').cast('timestamp').cast('int').cast('timestamp') <= df["timestamp"]))
@@ -31,13 +31,11 @@ def beurre(df):
     dfHome_average = dfHome.groupBy("id").avg("latitude", "longitude")
     dfWork_average = dfWork.groupBy("id").avg("latitude", "longitude")
     dfWeekend_average = dfWeekend.groupBy("id").avg("latitude", "longitude")
-    print(dfWeekend_average.show())
-    #for d in enumerate(dfWeekend.collect()):
+    dfWeekend_average.show()
+        
         
 
-    
-    #pass
-        
+
 if __name__ == '__main__':
     df = readfile("res.csv")
     df.show()
