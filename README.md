@@ -11,11 +11,11 @@
 Utiliser la méthode de k-anonymisation sur les points of interest et l'abusée au point de rassembler un très grand nombre d'id dessus
 
 #### Entrée : 
-	BDD avec les id déjà anonymisé
+BDD avec les id déjà anonymisé
 		(permet de différencié dès le début pour les métriques)
 
 #### Sortie : 
-	BDD anonymisé "kouign_amann.csv"
+BDD anonymisé "kouign_amann.csv"
 
 #### Début :
 	ChargerLaBDD(default.csv)
