@@ -37,4 +37,4 @@ def mesureUtility(OGFile, AnonymFile, separator):
     return moyenne
 
 
-mesureUtility("ReferenceINSA.csv","final.csv/part-00000-1c989864-0114-48b9-b541-0a28accd46a1-c000.csv",'\t')
+mesureUtility("ReferenceINSA.csv","final.csv/part-00000-d2b12ddf-880c-460c-a39e-b6bbeabd1197-c000.csv",'\t')

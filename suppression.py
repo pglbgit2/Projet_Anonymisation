@@ -25,4 +25,4 @@ def suppr(path, to, values_to_keep):
 
 
 if __name__=="__main__":
-    suppr("anonymFrangipane.csv/part-00000-fd7e527f-9a08-40f3-a1fa-1c7a1fd0a821-c000.csv", "final", 800)
+    suppr("anonymFrangipane.csv/part-00000-16ef9d57-f950-4001-8758-c33e223c9954-c000.csv", "final.csv", 800)
