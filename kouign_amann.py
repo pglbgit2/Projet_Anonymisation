@@ -6,6 +6,7 @@ from pyspark.sql.types import StructType, StructField, StringType, DoubleType, T
 import CSVManager
 import pandas as pd
 from itertools import tee
+from dbscan import perform_dbscan_clustering
 
 PrecisionGPS = 0.008
 # 1km = 0.008983 degrés de latitude/longitude
@@ -36,7 +37,8 @@ def beurre(df):
     dfWork_average = dfWork.groupBy("id").avg("latitude", "longitude")
     dfWeekend_average = dfWeekend.groupBy("id").avg("latitude", "longitude")
 
-    plot_points(dfHome_average)
+    clusters = perform_dbscan_clustering(dfHome_average, PrecisionGPS)
+    print(clusters.collect())
     # print("Nombre de personnes Home : " + str(dfHome_average.count()))
     # print("Nombre de personnes Work : " + str(dfWork_average.count()))
     # print("Nombre de personnes Weekend : " + str(dfWeekend_average.count()))
@@ -59,41 +61,41 @@ def beurre(df):
     # ---------------------------------------------------------------------------------------------------------------
 
         
-def rassembleur(iterator):
-    liste = []
-    cmp = 0
-    # Dupliquer l'itérateur
-    iterator1, iterator2 = tee(iterator)
-    for row1 in iterator1:
-        # si id est déjà traité
-        if any(row1["id"] in ensemble for ensemble in liste):
-            continue
+# def rassembleur(iterator):
+#     liste = []
+#     cmp = 0
+#     # Dupliquer l'itérateur
+#     iterator1, iterator2 = tee(iterator)
+#     for row1 in iterator1:
+#         # si id est déjà traité
+#         if any(row1["id"] in ensemble for ensemble in liste):
+#             continue
 
-        # Avancer l'itérateur2 pour qu'il soit aligné avec l'itérateur1
-        next(iterator2, None)
+#         # Avancer l'itérateur2 pour qu'il soit aligné avec l'itérateur1
+#         next(iterator2, None)
 
-        for row2 in iterator2:
-            if row1["id"] != row2["id"] and distanceProche(row1, row2):
-                cmp += 1
-                # Recherche de l'ensemble cible en fonction de la chaîne
-                ensemble_cible = None
-                for ensemble in liste:
-                    if row1["id"] in ensemble or row2["id"] in ensemble:
-                        ensemble_cible = ensemble
-                        break  # Arrêter la recherche une fois que l'ensemble cible est trouvé
-                # Si l'ensemble cible est trouvé, ajouter les deux id à l'intérieur
-                if ensemble_cible is not None:
-                    if row1["id"] not in ensemble_cible:
-                        ensemble_cible.add(row1["id"])
-                    if row2["id"] not in ensemble_cible:
-                        ensemble_cible.add(row2["id"])
-                # Si aucun ensemble cible n'a été trouvé, créer un nouvel ensemble
-                elif ensemble_cible is None:
-                    nouvel_ensemble = set([row1["id"], row2["id"]])
-                    liste.append(nouvel_ensemble)
-    print("Compteur : " + str(cmp))
-    return liste
-    # TODO: Refaire la boucle pour les id qui n'ont pas été traités
+#         for row2 in iterator2:
+#             if row1["id"] != row2["id"] and distanceProche(row1, row2):
+#                 cmp += 1
+#                 # Recherche de l'ensemble cible en fonction de la chaîne
+#                 ensemble_cible = None
+#                 for ensemble in liste:
+#                     if row1["id"] in ensemble or row2["id"] in ensemble:
+#                         ensemble_cible = ensemble
+#                         break  # Arrêter la recherche une fois que l'ensemble cible est trouvé
+#                 # Si l'ensemble cible est trouvé, ajouter les deux id à l'intérieur
+#                 if ensemble_cible is not None:
+#                     if row1["id"] not in ensemble_cible:
+#                         ensemble_cible.add(row1["id"])
+#                     if row2["id"] not in ensemble_cible:
+#                         ensemble_cible.add(row2["id"])
+#                 # Si aucun ensemble cible n'a été trouvé, créer un nouvel ensemble
+#                 elif ensemble_cible is None:
+#                     nouvel_ensemble = set([row1["id"], row2["id"]])
+#                     liste.append(nouvel_ensemble)
+#     print("Compteur : " + str(cmp))
+#     return liste
+#     # TODO: Refaire la boucle pour les id qui n'ont pas été traités
 
 
 
