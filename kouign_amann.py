@@ -1,7 +1,7 @@
 import string
 from functools import reduce
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import avg, hour, randn, col, weekofyear, monotonically_increasing_id, expr, row_number, dayofweek
+from pyspark.sql.functions import avg, hour, randn, col, weekofyear, monotonically_increasing_id, expr, row_number, dayofweek, explode
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 import CSVManager
 import pandas as pd
@@ -37,73 +37,38 @@ def beurre(df):
     dfWork_average = dfWork.groupBy("id").avg("latitude", "longitude")
     dfWeekend_average = dfWeekend.groupBy("id").avg("latitude", "longitude")
 
-    clusters = perform_dbscan_clustering(dfHome_average, PrecisionGPS)
-    print(clusters.collect())
-    # print("Nombre de personnes Home : " + str(dfHome_average.count()))
-    # print("Nombre de personnes Work : " + str(dfWork_average.count()))
-    # print("Nombre de personnes Weekend : " + str(dfWeekend_average.count()))
-    # # rassembler les couples (id;POI) qui sont proches (cf: distance utility)
-    # result_list_home = dfHome_average.rdd.mapPartitions(rassembleur).collect()
-    # result_list_work = dfWork_average.rdd.mapPartitions(rassembleur).collect()
-    # result_list_weekend = dfWeekend_average.rdd.mapPartitions(rassembleur).collect()
+    # pour tous les ids calculer des différents points of interest
+    clustersHome = perform_dbscan_clustering(dfHome_average, PrecisionGPS)
+    clustersWork = perform_dbscan_clustering(dfWork_average, PrecisionGPS)
+    clustersWeekend = perform_dbscan_clustering(dfWeekend_average, PrecisionGPS)
 
-    # # Afficher les résultats
-    # print("Voici la liste Home :" + str(result_list_home))
-    # print("Voici la liste Work :" + str(result_list_work))
-    # print("Voici la liste Weekend :" + str(result_list_weekend))
-    # print("Nombre de personnes Home : " + str(sum(len(ensemble) for ensemble in result_list_home)))
-    # print("Nombre de personnes Work : " + str(sum(len(ensemble) for ensemble in result_list_work)))
-    # print("Nombre de personnes Weekend : " + str(sum(len(ensemble) for ensemble in result_list_weekend)))
-    # ---------------------------------------------------------------------------------------------------------------
-    # Les résultats ne semblent pas cohérents, il y a 10 fois moins de personnes rassemblé dans un même lieu de travail
-    # que de personnes qui existantes dans le fichier de base. Il y a un seul cluster quel que soit la précision
-    # Problème de précision des coordonnées GPS ?
-    # ---------------------------------------------------------------------------------------------------------------
+	# calculer une moyenne de tout les POI SAUF LES MARQUÉS(cf couples seuls)
+    
+    # Explode la colonne 'ids' pour créer une nouvelle ligne pour chaque id
+    clustersHome_exploded = clustersHome.select('cluster', explode('ids').alias('id'))
+    clustersWork_exploded = clustersWork.select('cluster', explode('ids').alias('id'))
+    clustersWeekend_exploded = clustersWeekend.select('cluster', explode('ids').alias('id'))
 
-        
-# def rassembleur(iterator):
-#     liste = []
-#     cmp = 0
-#     # Dupliquer l'itérateur
-#     iterator1, iterator2 = tee(iterator)
-#     for row1 in iterator1:
-#         # si id est déjà traité
-#         if any(row1["id"] in ensemble for ensemble in liste):
-#             continue
+    # Joindre df_average avec clusters_exploded
+    dfHome_average_clustered = dfHome_average.join(clustersHome_exploded, 'id', 'inner')
+    dfWork_average_clustered = dfWork_average.join(clustersWork_exploded, 'id', 'inner')
+    dfWeekend_average_clustered = dfWeekend_average.join(clustersWeekend_exploded, 'id', 'inner')
 
-#         # Avancer l'itérateur2 pour qu'il soit aligné avec l'itérateur1
-#         next(iterator2, None)
+    # Calculer la moyenne des latitudes et longitudes pour chaque cluster
+    moyenneHome = dfHome_average_clustered.groupBy('cluster').avg('avg(latitude)', 'avg(longitude)').collect()
+    moyenneWork = dfWork_average_clustered.groupBy('cluster').avg('avg(latitude)', 'avg(longitude)').collect()
+    moyenneWeekend = dfWeekend_average_clustered.groupBy('cluster').avg('avg(latitude)', 'avg(longitude)').collect()
+	
+    # Assigner à l'ensemble des lignes concerné, dans les valeurs de localisation, la moyenne calculé
+    # Joindre df avec clusters_exploded et supprimer les colonnes 'numero_ligne' et 'cluster'
+    df = df.join(clustersHome_exploded, 'id', 'left').drop('numero_ligne', 'cluster')
+    df = df.join(clustersWork_exploded, 'id', 'left').drop('numero_ligne', 'cluster')
+    df = df.join(clustersWeekend_exploded, 'id', 'left').drop('numero_ligne', 'cluster')
 
-#         for row2 in iterator2:
-#             if row1["id"] != row2["id"] and distanceProche(row1, row2):
-#                 cmp += 1
-#                 # Recherche de l'ensemble cible en fonction de la chaîne
-#                 ensemble_cible = None
-#                 for ensemble in liste:
-#                     if row1["id"] in ensemble or row2["id"] in ensemble:
-#                         ensemble_cible = ensemble
-#                         break  # Arrêter la recherche une fois que l'ensemble cible est trouvé
-#                 # Si l'ensemble cible est trouvé, ajouter les deux id à l'intérieur
-#                 if ensemble_cible is not None:
-#                     if row1["id"] not in ensemble_cible:
-#                         ensemble_cible.add(row1["id"])
-#                     if row2["id"] not in ensemble_cible:
-#                         ensemble_cible.add(row2["id"])
-#                 # Si aucun ensemble cible n'a été trouvé, créer un nouvel ensemble
-#                 elif ensemble_cible is None:
-#                     nouvel_ensemble = set([row1["id"], row2["id"]])
-#                     liste.append(nouvel_ensemble)
-#     print("Compteur : " + str(cmp))
-#     return liste
-#     # TODO: Refaire la boucle pour les id qui n'ont pas été traités
+    # Écrire le DataFrame dans un fichier CSV
+    df.coalesce(1).write.csv("kouign_amann.csv", header=True,  mode="overwrite", sep="\t")
 
 
-
-def distanceProche(row1, row2):
-    if row1["avg(latitude)"] - row2["avg(latitude)"] <= PrecisionGPS and row1["avg(longitude)"] - row2["avg(longitude)"] <= PrecisionGPS:
-        return True
-    else:
-        return False
 
 if __name__ == '__main__':
     df = readfile("res.csv")

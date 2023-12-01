@@ -1,3 +1,4 @@
+# pip3 install scikit-learn
 from sklearn.cluster import DBSCAN
 from pyspark.sql.functions import udf, collect_list, monotonically_increasing_id
 from pyspark.sql.types import IntegerType
