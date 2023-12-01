@@ -66,7 +66,7 @@ def beurre(df):
     df = df.join(clustersWeekend_exploded, 'id', 'left').drop('numero_ligne', 'cluster')
 
     # Écrire le DataFrame dans un fichier CSV
-    df.coalesce(1).write.csv("kouign_amann.csv", header=True,  mode="overwrite", sep="\t")
+    df.coalesce(1).write.csv("kouign_amann.csv", header=False,  mode="overwrite", sep="\t")
 
 
 
