@@ -18,11 +18,11 @@ def suppr(path, to, values_to_keep):
     df = df.withColumn("numero_ligne", F.col("numero_ligne").cast("bigint"))
     df =df.sort("numero_ligne", ascending=[True])
     df.show()
-    # df = df.drop("id", "week", "longitude", "latitude", "numero_ligne")
     df_fin = df.select("anonymId", "timestamp", "new_longitude", "new_latitude")
+    # df_fin = df.select("id", "week","timestamp","anonymId", "new_longitude", "new_latitude")
     df_fin.coalesce(1).write.csv(to, header=False, mode="overwrite", sep="\t")
 
 
 
 if __name__=="__main__":
-    suppr("anonymFrangipane.csv/part-00000-16ef9d57-f950-4001-8758-c33e223c9954-c000.csv", "final.csv", 800)
+    suppr("anonymFrangipane.csv/part-00000-06b13182-2d3a-445b-8069-f79bc06c3fcd-c000.csv", "final.csv", 800)

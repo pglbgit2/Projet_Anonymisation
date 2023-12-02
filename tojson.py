@@ -76,7 +76,7 @@ def dataframeToJSON(Dataframe, keep_null=False, liste_id=None):
                              "2015-15": False, "2015-16": False, "2015-17": False, "2015-18": False,
                              "2015-19": False, "2015-20": False}
 
-    json_out = json.dumps(json_rendu)
+    json_out = json.dumps(json_rendu, indent=4)
 
     return json_out
 

@@ -107,16 +107,18 @@ def anonymiseDayNightWeekend(startOfTheWork, endOfTheWork, startOfTheNight, endO
                                                         expr("substring(timestamp, 1, length(timestamp)-3) || ':00'"))
     print(">rounded to minute")
 
+    sorted = almost_finished.sort("numero_ligne", ascending=[True])
+
     idPseudoDic = {}
     generatedStrings = set()
     generatedStrings.add('')
     pseudonymise_udf = udf(lambda z: pseudonymise(z, idPseudoDic, generatedStrings), StringType())
-    anonymised = almost_finished.withColumn('anonymId', pseudonymise_udf(array('id', 'week')))
+    anonymised = sorted.withColumn('anonymId', pseudonymise_udf(array('id', 'week')))
 
     print(">after pseudonymisation")
 
-    final_sorted = anonymised.sort("numero_ligne", ascending=[True])
-    final_sorted.coalesce(1).write.csv(path, header=True, mode="overwrite", sep="\t")
+    # final_sorted = anonymised.sort("numero_ligne", ascending=[True])
+    anonymised.coalesce(1).write.csv(path, header=True,  mode="overwrite", sep="\t")
 
 
 def anonymize_but_not_completely(startOfTheDay, startOfTheNight, df, variation, path):
