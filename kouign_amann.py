@@ -1,7 +1,7 @@
 import string
 from functools import reduce
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import avg, hour, randn, col, weekofyear, monotonically_increasing_id, expr, row_number, dayofweek, explode
+from pyspark.sql.functions import date_trunc, avg, hour, randn, col, weekofyear, monotonically_increasing_id, expr, row_number, dayofweek, explode, from_unixtime, unix_timestamp
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 import CSVManager
 import pandas as pd
@@ -54,19 +54,26 @@ def beurre(df):
     dfWork_average_clustered = dfWork_average.join(clustersWork_exploded, 'id', 'inner')
     dfWeekend_average_clustered = dfWeekend_average.join(clustersWeekend_exploded, 'id', 'inner')
 
-    # Calculer la moyenne des latitudes et longitudes pour chaque cluster
+
     moyenneHome = dfHome_average_clustered.groupBy('cluster').avg('avg(latitude)', 'avg(longitude)').collect()
     moyenneWork = dfWork_average_clustered.groupBy('cluster').avg('avg(latitude)', 'avg(longitude)').collect()
     moyenneWeekend = dfWeekend_average_clustered.groupBy('cluster').avg('avg(latitude)', 'avg(longitude)').collect()
-	
-    # Assigner à l'ensemble des lignes concerné, dans les valeurs de localisation, la moyenne calculé
+
+    # Assigner à l'ensemble des lignes concerné, dans les valeurs de localisation, la moyenne calculée
     # Joindre df avec clusters_exploded et supprimer les colonnes 'numero_ligne' et 'cluster'
     df = df.join(clustersHome_exploded, 'id', 'left').drop('numero_ligne', 'cluster')
     df = df.join(clustersWork_exploded, 'id', 'left').drop('numero_ligne', 'cluster')
     df = df.join(clustersWeekend_exploded, 'id', 'left').drop('numero_ligne', 'cluster')
 
+
+    # Arrondir le champ 'timestamp' à l'heure la plus proche
+    df = df.withColumn('timestamp', date_trunc('hour', 'timestamp'))
+    
+    # Convertir le champ 'timestamp' en une chaîne de caractères avec le format 'AAAA-MM-JJ HH:MM:SS'
+    df = df.withColumn('timestamp', from_unixtime(unix_timestamp('timestamp', 'yyyy-MM-dd HH:mm:ss')))
+
     # Écrire le DataFrame dans un fichier CSV
-    df.coalesce(1).write.csv("kouign_amann.csv", header=False,  mode="overwrite", sep="\t")
+    df.coalesce(1).write.csv("kouign_amann.csv", header=False, mode="overwrite", sep="\t")
 
 
 
