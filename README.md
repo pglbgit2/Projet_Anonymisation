@@ -50,4 +50,7 @@ BDD anonymisé "kouign_amann.csv"
 		random(HEURE,JOUR,LOCALISATION)
 		//Option C
 		//trouver un moyen de monter le score d'utilité en ne détruisant pas l'anonymisation faites avant car les id sont en commun
-#### Fin
+#### Amélioration :
+Manque la suppression des lignes (DEL)
+Anonymisation du bruit hors cluster
+Peut être arrondir les coordonnées pour caché le fait que ce soit des moyennes
