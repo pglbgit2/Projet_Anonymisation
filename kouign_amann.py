@@ -61,9 +61,11 @@ def beurre(df):
 
     # Assigner à l'ensemble des lignes concerné, dans les valeurs de localisation, la moyenne calculée
     # Joindre df avec clusters_exploded et supprimer les colonnes 'numero_ligne' et 'cluster'
-    df = df.join(clustersHome_exploded, 'id', 'left').drop('numero_ligne', 'cluster')
-    df = df.join(clustersWork_exploded, 'id', 'left').drop('numero_ligne', 'cluster')
-    df = df.join(clustersWeekend_exploded, 'id', 'left').drop('numero_ligne', 'cluster')
+    df = df.join(clustersHome_exploded, 'id', 'left').drop('cluster')
+    df = df.join(clustersWork_exploded, 'id', 'left').drop('cluster')
+    df = df.join(clustersWeekend_exploded, 'id', 'left').drop('cluster')
+
+
 
 
     # Arrondir le champ 'timestamp' à l'heure la plus proche
@@ -72,13 +74,15 @@ def beurre(df):
     # Convertir le champ 'timestamp' en une chaîne de caractères avec le format 'AAAA-MM-JJ HH:MM:SS'
     df = df.withColumn('timestamp', from_unixtime(unix_timestamp('timestamp', 'yyyy-MM-dd HH:mm:ss')))
 
-    # Écrire le DataFrame dans un fichier CSV
+    df = df.sort("numero_ligne", ascending=[True])
+    df = df.drop("numero_ligne")
+
     df.coalesce(1).write.csv("kouign_amann.csv", header=False, mode="overwrite", sep="\t")
 
 
 
 if __name__ == '__main__':
-    df = readfile("res.csv")
+    df = readfile("ReferenceINSA.csv")
     beurre(df)
 
 
