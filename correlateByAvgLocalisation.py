@@ -19,7 +19,7 @@ print(">after schema definition")
 df1 = spark.read.csv("ReferenceINSA.csv", header=False, schema=schema, sep='\t')
 print(">after reading original file")
 
-df2 = spark.read.csv("final.csv/part-00000-b88ada65-4a32-4aab-bb38-7a1dfcc29904-c000_clean.csv", header=False, schema=schema, sep='\t' )
+df2 = spark.read.csv("final1.csv/part-00000-b976ccb4-c311-45d0-9c71-5589f87633ba-c000_clean.csv", header=False, schema=schema, sep='\t' )
 print(">after reading anonymized file")
 df1 = df1.withColumn("week", weekofyear("timestamp"))
 df2 = df2.withColumn("week", weekofyear("timestamp"))
@@ -105,6 +105,6 @@ idlist = []
 for id in idlisttab:
     idlist.append(id[0])
 json_out = tojson.dataframeToJSON(mergedpd,True, idlist)
-with open("identifiedfinal2.json", "w") as outfile:
+with open("identifiedfinal1.json", "w") as outfile:
     outfile.write(json_out)
 #CSVManager.writeTabCSVFile(merged.toPandas(),"MergedcorrelationByAvg")
