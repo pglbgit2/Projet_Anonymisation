@@ -7,6 +7,10 @@ from pyspark.sql.types import StructType, StructField, StringType, DoubleType, T
 import random
 import CSVManager
 import pandas
+idPseudoDic = {}
+generatedStrings = set()
+generatedStrings.add('')
+
 
 def NegativePositiveInteger():
     if random.random() > 0.5:
@@ -109,9 +113,7 @@ def anonymiseDayNightWeekend(startOfTheWork, endOfTheWork, startOfTheNight, endO
 
     sorted = almost_finished.sort("numero_ligne", ascending=[True])
 
-    idPseudoDic = {}
-    generatedStrings = set()
-    generatedStrings.add('')
+    
     pseudonymise_udf = udf(lambda z: pseudonymise(z, idPseudoDic, generatedStrings), StringType())
     anonymised = sorted.withColumn('anonymId', pseudonymise_udf(array('id', 'week')))
 
@@ -159,11 +161,9 @@ def anonymize_but_not_completely(startOfTheDay, startOfTheNight, df, variation, 
 
     sorted = almost_finished.sort("numero_ligne", ascending=[True])
 
-    idPseudoDic = {}
-    generatedStrings = set()
     generatedStrings.add('')
     pseudonymise_udf = udf(lambda z: pseudonymise(z, idPseudoDic, generatedStrings), StringType())
-    anonymised = sorted.withColumn('anonymId', pseudonymise_udf(array('id', 'week')))
+    anonymised = sorted.coalesce(1).withColumn('anonymId', pseudonymise_udf(array('id', 'week')))
 
     print(">after pseudonymisation")
 
@@ -204,7 +204,7 @@ def pseudonymise(array, idAno, generatedStrings):
 
 
 if __name__=='__main__':
-    df = readfile("ReferenceINSA.csv")
+    df = readfile("../ReferenceINSA.csv")
     #df.show()
     print(">after reading original file")
     # anonymize_but_not_completely(6, 22, df, 0.0001, "anonymFrangipane.csv")
