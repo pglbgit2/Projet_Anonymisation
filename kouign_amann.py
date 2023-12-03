@@ -1,7 +1,7 @@
 import string
 from functools import reduce
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import coalesce, collect_list, lit, when, date_trunc, avg, hour, randn, col, weekofyear, monotonically_increasing_id, expr, row_number, dayofweek, explode, from_unixtime, unix_timestamp
+from pyspark.sql.functions import coalesce, collect_list, lit, when, date_trunc, avg, hour, rand, randn, col, weekofyear, monotonically_increasing_id, expr, row_number, dayofweek, explode, from_unixtime, unix_timestamp, round
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 import CSVManager
 import pandas as pd
@@ -185,7 +185,10 @@ def beurre(df, spark):
 
     df.show()
     # Assigner l'id "DEL" à toutes les lignes qui ont 0 en latitude
-    df = df.withColumn('id', when(df.final_suppr == 0, "DEL").otherwise(df.id))
+    df = df.withColumn('id', when(df.final_suppr == 0  & (rand() <= 0.9), "DEL").otherwise(df.id))
+    df = df.withColumn('longitude', when(df.final_suppr == 0, round(df.longitude, 2)))
+    df = df.withColumn('latitude', when(df.final_suppr == 0, round(df.latitude, 2)))
+
     df = df.drop('suppr', 'suppr1', 'suppr2', 'final_suppr')
 
     # Supprimer les lignes qui ne sont pas calculer dans les POI
