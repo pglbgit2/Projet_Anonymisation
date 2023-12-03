@@ -173,7 +173,7 @@ def anonymize_but_not_completely(startOfTheDay, startOfTheNight, df, variation, 
 def pseudonymise(array, idAno, generatedStrings):
     [id, week] = array
     if(id not in idAno):
-        pseudo = ''
+        pseudo = generateString()
         while pseudo in generatedStrings:
             pseudo = generateString()
         idAno[id] = {}
@@ -181,7 +181,7 @@ def pseudonymise(array, idAno, generatedStrings):
         return pseudo
     else:
         if(week not in idAno[id]):
-            pseudo = ''
+            pseudo = generateString()
             while pseudo in generatedStrings:
                 pseudo = generateString()
             idAno[id][week] = pseudo
