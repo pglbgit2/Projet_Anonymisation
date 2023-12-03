@@ -1,7 +1,7 @@
 import string
 from functools import reduce
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import lit, when, date_trunc, avg, hour, randn, col, weekofyear, monotonically_increasing_id, expr, row_number, dayofweek, explode, from_unixtime, unix_timestamp
+from pyspark.sql.functions import coalesce, collect_list, lit, when, date_trunc, avg, hour, randn, col, weekofyear, monotonically_increasing_id, expr, row_number, dayofweek, explode, from_unixtime, unix_timestamp
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 import CSVManager
 import pandas as pd
@@ -44,9 +44,12 @@ def beurre(df, spark):
     """
     # pour tous les ids calculer des différents points of interest
     clustersHome = perform_dbscan_clustering(dfHome_average, PrecisionGPS).withColumnRenamed('ids', 'id')
+    clustersHome = clustersHome.filter(clustersHome.cluster != -1)
     """
     clustersWork = perform_dbscan_clustering(dfWork_average, PrecisionGPS).withColumnRenamed('ids', 'id')
+    clustersWork = clustersWork.filter(clustersWork.cluster != -1)
     clustersWeekend = perform_dbscan_clustering(dfWeekend_average, PrecisionGPS).withColumnRenamed('ids', 'id')
+    clustersWeekend = clustersWeekend.filter(clustersWeekend.cluster != -1)
     """
     
     
@@ -64,36 +67,98 @@ def beurre(df, spark):
     dfWork_average_clustered = dfWork_average.join(clustersWork_exploded, 'id', 'inner')
     dfWeekend_average_clustered = dfWeekend_average.join(clustersWeekend_exploded, 'id', 'inner')
     """
+    # Collecter tous les ID pour chaque cluster
+    id_listHome = dfHome_average_clustered.groupBy('cluster').agg(collect_list('id').alias('ids'))
 
-    moyenneHome = dfHome_average_clustered.groupBy('cluster').avg('avg(latitude)', 'avg(longitude)').collect()
+    # Calculer la moyenne des latitudes et longitudes pour chaque cluster
+    moyenneHome = dfHome_average_clustered.groupBy('cluster').avg('avg(latitude)', 'avg(longitude)')
+
+    # Joindre id_list avec moyenneHome
+    moyenneHome = moyenneHome.join(id_listHome, on='cluster', how='right')
+    moyenneHome = moyenneHome.select('cluster', 'avg(avg(latitude))', 'avg(avg(longitude))', explode('ids').alias('new_id'))
     """
-    moyenneWork = dfWork_average_clustered.groupBy('cluster').avg('avg(latitude)', 'avg(longitude)').collect()
-    moyenneWeekend = dfWeekend_average_clustered.groupBy('cluster').avg('avg(latitude)', 'avg(longitude)').collect()
+    # Collecter tous les ID pour chaque cluster
+    id_listWork = dfWork_average_clustered.groupBy('cluster').agg(collect_list('id').alias('ids'))
+    # Calculer la moyenne des latitudes et longitudes pour chaque cluster
+    moyenneWork = dfWork_average_clustered.groupBy('cluster').avg('avg(latitude)', 'avg(longitude)')
+    # Joindre id_list avec moyenneWork
+    moyenneWork = moyenneWork.join(id_listWork, on='cluster', how='right')
+    moyenneWork.show()
+    moyenneWork = moyenneWork.select('cluster', 'avg(avg(latitude))', 'avg(avg(longitude))', explode('ids').alias('new_id'))
+
+    # Collecter tous les ID pour chaque cluster
+    id_listWeekend = dfWeekend_average_clustered.groupBy('cluster').agg(collect_list('id').alias('ids'))
+    # Calculer la moyenne des latitudes et longitudes pour chaque cluster
+    moyenneWeekend = dfWeekend_average_clustered.groupBy('cluster').avg('avg(latitude)', 'avg(longitude)')
+    # Joindre id_list avec moyenneWeekend
+    moyenneWeekend = moyenneWeekend.join(id_listWeekend, on='cluster', how='right')
+    moyenneWeekend.show()
+    moyenneWeekend = moyenneWeekend.select('cluster', 'avg(avg(latitude))', 'avg(avg(longitude))', explode('ids').alias('new_id'))
     """ 
-
-    # Assigner à l'ensemble des lignes concerné, dans les valeurs de localisation, la moyenne calculée
-    # Joindre df avec clusters_exploded et supprimer les colonnes 'numero_ligne' et 'cluster'
-    
-    # Créez une condition pour les lignes qui respectent le filtre Home
-    home_condition = ((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 5))
-    # Créez un DataFrame temporaire qui contient uniquement les lignes qui respectent le filtre Home
-    df_home = df.filter(home_condition)
+    # Renommer les colonnes 'avg(avg(latitude))' et 'avg(avg(longitude))' en 'latitude' et 'longitude'
+    moyenneHome = moyenneHome.withColumnRenamed('avg(avg(latitude))', 'latitude').withColumnRenamed('avg(avg(longitude))', 'longitude')
+    # Renommer la colonne 'new_id' en 'id'
+    moyenneHome = moyenneHome.withColumnRenamed('new_id', 'id')
+    moyenneHome = moyenneHome.withColumnRenamed('latitude', 'latMoy').withColumnRenamed('longitude', 'longMoy')
+    # Faire une jointure de dfHome avec moyenneHome sur la colonne 'id'
+    dfHome = dfHome.join(moyenneHome, on='id', how='left')
+    # Créer de nouvelles colonnes 'latitude' et 'longitude' qui contiennent les valeurs de moyenneHome si elles existent, sinon les valeurs de dfHome
+    dfHome = dfHome.withColumn('new_latitude', coalesce(moyenneHome['latMoy'], dfHome['latitude']))
+    dfHome = dfHome.withColumn('new_longitude', coalesce(moyenneHome['longMoy'], dfHome['longitude']))
+    # Supprimer les anciennes colonnes 'latitude' et 'longitude'
+    dfHome = dfHome.drop('latitude', 'longitude', 'latMoy', 'longMoy')
+    dfHome = dfHome.drop('cluster')
+    dfHome.show()
+    dfHome = dfHome.drop('id')
     # Effectuez le join sur le DataFrame temporaire
-    df = df_home.join(clustersHome_exploded, 'id', 'left').drop('cluster')
+    df = df.join(dfHome, on='numero_ligne', how='left')    
+    df = df.withColumn('latitude', coalesce(df['new_latitude'], df['latitude']))
+    df = df.withColumn('longitude', coalesce(df['new_longitude'], df['longitude']))
+    df = df.drop('new_latitude', 'new_longitude')
+    df.show()
     """
-    # Créez une condition pour les lignes qui respectent le filtre Work
-    work_condition = ((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 5))
-    # Créez un DataFrame temporaire qui contient uniquement les lignes qui respectent le filtre Work
-    df_work = df.filter(work_condition)
+    # Renommer les colonnes 'avg(avg(latitude))' et 'avg(avg(longitude))' en 'latitude' et 'longitude'
+    moyenneWork = moyenneWork.withColumnRenamed('avg(avg(latitude))', 'latitude').withColumnRenamed('avg(avg(longitude))', 'longitude')
+    # Renommer la colonne 'new_id' en 'id'
+    moyenneWork = moyenneWork.withColumnRenamed('new_id', 'id')
+    moyenneWork = moyenneWork.withColumnRenamed('latitude', 'latMoy').withColumnRenamed('longitude', 'longMoy')
+    # Faire une jointure de dfWork avec moyenneWork sur la colonne 'id'
+    dfWork = dfWork.join(moyenneWork, on='id', how='left')
+    # Créer de nouvelles colonnes 'latitude' et 'longitude' qui contiennent les valeurs de moyenneWork si elles existent, sinon les valeurs de dfWork
+    dfWork = dfWork.withColumn('new_latitude', coalesce(moyenneWork['latMoy'], dfWork['latitude']))
+    dfWork = dfWork.withColumn('new_longitude', coalesce(moyenneWork['longMoy'], dfWork['longitude']))
+    # Supprimer les anciennes colonnes 'latitude' et 'longitude'
+    dfWork = dfWork.drop('latitude', 'longitude', 'latMoy', 'longMoy')
+    dfWork = dfWork.drop('cluster')
+    dfWork.show()
+    dfWork = dfWork.drop('id')
     # Effectuez le join sur le DataFrame temporaire
-    df = df_work.join(clustersWork_exploded, 'id', 'left').drop('cluster')
-    
-    # Créez une condition pour les lignes qui respectent le filtre Weekend
-    weekend_condition = ((hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18)) & ((dayofweek(df["timestamp"]) == 6) | (dayofweek(df["timestamp"]) == 7))
-    # Créez un DataFrame temporaire qui contient uniquement les lignes qui respectent le filtre Weekend
-    df_weekend = df.filter(weekend_condition)
+    df = df.join(dfWork, on='numero_ligne', how='left')    
+    df = df.withColumn('latitude', coalesce(df['new_latitude'], df['latitude']))
+    df = df.withColumn('longitude', coalesce(df['new_longitude'], df['longitude']))
+    df = df.drop('new_latitude', 'new_longitude')
+
+
+    # Renommer les colonnes 'avg(avg(latitude))' et 'avg(avg(longitude))' en 'latitude' et 'longitude'
+    moyenneWeekend = moyenneWeekend.withColumnRenamed('avg(avg(latitude))', 'latitude').withColumnRenamed('avg(avg(longitude))', 'longitude')
+    # Renommer la colonne 'new_id' en 'id'
+    moyenneWeekend = moyenneWeekend.withColumnRenamed('new_id', 'id')
+    moyenneWeekend = moyenneWeekend.withColumnRenamed('latitude', 'latMoy').withColumnRenamed('longitude', 'longMoy')
+    # Faire une jointure de dfWeekend avec moyenneWeekend sur la colonne 'id'
+    dfWeekend = dfWeekend.join(moyenneWeekend, on='id', how='left')
+    # Créer de nouvelles colonnes 'latitude' et 'longitude' qui contiennent les valeurs de moyenneWeekend si elles existent, sinon les valeurs de dfWeekend
+    dfWeekend = dfWeekend.withColumn('new_latitude', coalesce(moyenneWeekend['latMoy'], dfWeekend['latitude']))
+    dfWeekend = dfWeekend.withColumn('new_longitude', coalesce(moyenneWeekend['longMoy'], dfWeekend['longitude']))
+    # Supprimer les anciennes colonnes 'latitude' et 'longitude'
+    dfWeekend = dfWeekend.drop('latitude', 'longitude', 'latMoy', 'longMoy')
+    dfWeekend = dfWeekend.drop('cluster')
+    dfWeekend.show()
+    dfWeekend = dfWeekend.drop('id')
     # Effectuez le join sur le DataFrame temporaire
-    df = df_weekend.join(clustersWeekend_exploded, 'id', 'left').drop('cluster')
+    df = df.join(dfWeekend, on='numero_ligne', how='left')    
+    df = df.withColumn('latitude', coalesce(df['new_latitude'], df['latitude']))
+    df = df.withColumn('longitude', coalesce(df['new_longitude'], df['longitude']))
+    df = df.drop('new_latitude', 'new_longitude')
     """
 
     # ========================Suppression du Noise========================
