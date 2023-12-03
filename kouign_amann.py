@@ -32,37 +32,40 @@ def beurre(df, spark):
     dfWork = df.filter((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))
     dfWeekend = df.filter((hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18) & ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 6)))
 
-
-    
-
     # pour tous les ids calculer des différents points of interest
     dfHome_average = dfHome.groupBy("id").avg("latitude", "longitude")
+    """
     dfWork_average = dfWork.groupBy("id").avg("latitude", "longitude")
     dfWeekend_average = dfWeekend.groupBy("id").avg("latitude", "longitude")
-
+    """
     # pour tous les ids calculer des différents points of interest
     clustersHome = perform_dbscan_clustering(dfHome_average, PrecisionGPS).withColumnRenamed('ids', 'id')
+    """
     clustersWork = perform_dbscan_clustering(dfWork_average, PrecisionGPS).withColumnRenamed('ids', 'id')
     clustersWeekend = perform_dbscan_clustering(dfWeekend_average, PrecisionGPS).withColumnRenamed('ids', 'id')
-
+    """
     
     
 	# calculer une moyenne de tout les POI SAUF LES MARQUÉS(cf couples seuls)
     
     # Explode la colonne 'ids' pour créer une nouvelle ligne pour chaque id
     clustersHome_exploded = clustersHome.select('cluster', explode('id').alias('id'))
+    """
     clustersWork_exploded = clustersWork.select('cluster', explode('id').alias('id'))
     clustersWeekend_exploded = clustersWeekend.select('cluster', explode('id').alias('id'))
-
+    """
     # Joindre df_average avec clusters_exploded
     dfHome_average_clustered = dfHome_average.join(clustersHome_exploded, 'id', 'inner')
+    """
     dfWork_average_clustered = dfWork_average.join(clustersWork_exploded, 'id', 'inner')
     dfWeekend_average_clustered = dfWeekend_average.join(clustersWeekend_exploded, 'id', 'inner')
-
+    """
 
     moyenneHome = dfHome_average_clustered.groupBy('cluster').avg('avg(latitude)', 'avg(longitude)').collect()
+    """
     moyenneWork = dfWork_average_clustered.groupBy('cluster').avg('avg(latitude)', 'avg(longitude)').collect()
     moyenneWeekend = dfWeekend_average_clustered.groupBy('cluster').avg('avg(latitude)', 'avg(longitude)').collect()
+    """ 
 
     # Assigner à l'ensemble des lignes concerné, dans les valeurs de localisation, la moyenne calculée
     # Joindre df avec clusters_exploded et supprimer les colonnes 'numero_ligne' et 'cluster'
@@ -73,7 +76,7 @@ def beurre(df, spark):
     df_home = df.filter(home_condition)
     # Effectuez le join sur le DataFrame temporaire
     df = df_home.join(clustersHome_exploded, 'id', 'left').drop('cluster')
-
+    """
     # Créez une condition pour les lignes qui respectent le filtre Work
     work_condition = ((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 5))
     # Créez un DataFrame temporaire qui contient uniquement les lignes qui respectent le filtre Work
@@ -87,20 +90,28 @@ def beurre(df, spark):
     df_weekend = df.filter(weekend_condition)
     # Effectuez le join sur le DataFrame temporaire
     df = df_weekend.join(clustersWeekend_exploded, 'id', 'left').drop('cluster')
+    """
 
+    # ========================Suppression du Noise========================
     # Identifiez les id de bruit
     noise_ids_home = [row['id'] for row in clustersHome.filter(clustersHome.cluster == -1).select('id').collect()]
+    """
     noise_ids_work = [row['id'] for row in clustersWork.filter(clustersWork.cluster == -1).select('id').collect()]
     noise_ids_weekend = [row['id'] for row in clustersWeekend.filter(clustersWeekend.cluster == -1).select('id').collect()]
+    """
 
     print("Noise_Home", noise_ids_home)
+    """
     print("Noise_Work", noise_ids_work)
     print("Noise_Weekend", noise_ids_weekend)
+    """
 
     # Convertir les listes en DataFrames
     noise_ids_home_df = spark.createDataFrame(noise_ids_home, StringType()).toDF('home_id')
+    """
     noise_ids_work_df = spark.createDataFrame(noise_ids_work, StringType()).toDF('work_id')
     noise_ids_weekend_df = spark.createDataFrame(noise_ids_weekend, StringType()).toDF('weekend_id')
+    """
     noise_ids_home_df.show()
     # Assigner les coordonnées à 0 pour les id de bruit
     df = df.join(noise_ids_home_df, df.id == noise_ids_home_df.home_id, 'left_outer') \
@@ -121,6 +132,7 @@ def beurre(df, spark):
     # Affichez les lignes du DataFrame temporaire
     temp_df.show()
     # ---------------------DEBUG--------------------
+    """
     df = df.join(noise_ids_work_df, df.id == noise_ids_work_df.work_id, 'left_outer') \
         .withColumn('latitude', when((col('work_id').isNotNull()) &
                          ((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16) & 
@@ -134,12 +146,14 @@ def beurre(df, spark):
                          ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 6)),
                          0).otherwise(df.latitude)) \
         .drop(noise_ids_weekend_df.weekend_id)
+    """
+    """
     # Assigner l'id "DEL" à toutes les lignes qui ont 0 en latitude
     df = df.withColumn('id', when(df.latitude == 0, "DEL").otherwise(df.id))
 
     # Supprimer les lignes qui ne sont pas calculer dans les POI
 
-    # ===================dfDL A REPLACER ICI===================
+    # ========================dfDL========================
     # Création d'un DataFrame avec les lignes à supprimer
     dfDEL = df.filter(~((hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18) & ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 6)))
                       &~((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))
@@ -164,6 +178,7 @@ def beurre(df, spark):
 
 
     df.coalesce(1).write.csv("kouign_amann.csv", header=False, mode="overwrite", sep="\t")
+    """
 
 
 
