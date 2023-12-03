@@ -60,7 +60,7 @@ if __name__ == "__main__":
     generatedStrings = set()
     generatedStrings.add('')
     pseudonymise_udf = udf(lambda z: pseudonymize(z, idPseudoDic, generatedStrings), StringType())
-    anonymised = df.withColumn('anonymId', pseudonymise_udf(array('id', 'week')))
+    anonymised = df.coalesce(1).withColumn('anonymId', pseudonymise_udf(array('id', 'week')))
     df.show()
     anonymised = anonymised.withColumn('id', anonymised['anonymId']).drop('anonymId')  # Replace 'id' with 'anonymId' and drop 'anonymId'
     df.show()
