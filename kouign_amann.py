@@ -121,8 +121,13 @@ def beurre(df, spark):
     df = df.withColumn('id', when(df.latitude == 0, "DEL").otherwise(df.id))
 
     # Supprimer les lignes qui ne sont pas calculer dans les POI
+
+    # ===================dfDL A REPLACER ICI===================
     # Création d'un DataFrame avec les lignes à supprimer
-    dfDEL = df.filter((~((hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18)) & ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 6)))|(~((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16)) & ((dayofweek(df["timestamp"]) >= 2) | (dayofweek(df["timestamp"]) <= 6)))|(~((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & ((dayofweek(df["timestamp"]) >= 2) | (dayofweek(df["timestamp"]) <= 6))))    
+    dfDEL = df.filter(~((hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18) & ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 5)))
+                      &~((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 5)))
+                      &~(((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 5)))
+                      )    
     # Créer une liste des lignes dans dfDEL
     dfDEL.show()
     del_ids = [row['numero_ligne'] for row in dfDEL.select('numero_ligne').distinct().collect()]
