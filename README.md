@@ -31,7 +31,7 @@ BDD anonymisé "kouign_amann.csv"
 			soit:
 				les abandonner à leurs sorts (ils seront probablement réidentifié sans difficulté mais on sauve de l'efficacité)
 			soit:
-				rassembler une partie/tous les seuls ça nique l'utilité mais pollue l'identification (probablement à calculé le (bénéfice potentiel/pertes d'utilité)
+				rassembler une partie/tous les seuls ça nique l'utilité mais pollue l'identification (probablement à calculé le (bénéfice potentiel/pertes d'utilité))
 			// Si idée supplémentaire proposé ici:
 
 	//Modification minim à faire selon choix des solos
@@ -53,4 +53,4 @@ BDD anonymisé "kouign_amann.csv"
 #### Amélioration :
 Manque la suppression des lignes (DEL)  
 Anonymisation du bruit hors cluster  
-Peut être arrondir les coordonnées pour caché le fait que ce soit des moyennes
+Peut être arrondir les coordonnées pour caché le fait que ce soit des moyennes  
