@@ -28,9 +28,13 @@ def readfile(path: str):
     
 
 def beurre(df, spark):
-    dfHome = df.filter(((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))  # Jours du lundi au jeudi (2=lundi selon ChatGPT)
-    dfWork = df.filter((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))
-    dfWeekend = df.filter((hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18) & ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 6)))
+    conditionHome=((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6))
+    conditionWork=(hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6))
+    ConditionWeekend=(hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18) & ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 6))
+    dfHome = df.filter(conditionHome)  # Jours du lundi au jeudi (2=lundi selon ChatGPT)
+    dfWork = df.filter(conditionWork)
+    dfWeekend = df.filter(ConditionWeekend)
+    df = df.withColumn("type", when((conditionHome|conditionWork|ConditionWeekend), col("type")).otherwise("del"))
 
     # pour tous les ids calculer des différents points of interest
     dfHome_average = dfHome.groupBy("id").avg("latitude", "longitude")
@@ -184,7 +188,7 @@ def beurre(df, spark):
 
 if __name__ == '__main__':
     df, spark = readfile("res.csv")
-    beurre(df, spark)
+    beurre(df.withcolumn("type", lit("bruit")), spark)
 
 
 
