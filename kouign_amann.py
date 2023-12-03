@@ -66,10 +66,27 @@ def beurre(df, spark):
 
     # Assigner à l'ensemble des lignes concerné, dans les valeurs de localisation, la moyenne calculée
     # Joindre df avec clusters_exploded et supprimer les colonnes 'numero_ligne' et 'cluster'
-    df = df.join(clustersHome_exploded, 'id', 'left').drop('cluster')
-    df = df.join(clustersWork_exploded, 'id', 'left').drop('cluster')
-    df = df.join(clustersWeekend_exploded, 'id', 'left').drop('cluster')
+    
+    # Créez une condition pour les lignes qui respectent le filtre Home
+    home_condition = ((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 5))
+    # Créez un DataFrame temporaire qui contient uniquement les lignes qui respectent le filtre Home
+    df_home = df.filter(home_condition)
+    # Effectuez le join sur le DataFrame temporaire
+    df = df_home.join(clustersHome_exploded, 'id', 'left').drop('cluster')
 
+    # Créez une condition pour les lignes qui respectent le filtre Work
+    work_condition = ((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 5))
+    # Créez un DataFrame temporaire qui contient uniquement les lignes qui respectent le filtre Work
+    df_work = df.filter(work_condition)
+    # Effectuez le join sur le DataFrame temporaire
+    df = df_work.join(clustersWork_exploded, 'id', 'left').drop('cluster')
+    
+    # Créez une condition pour les lignes qui respectent le filtre Weekend
+    weekend_condition = ((hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18)) & ((dayofweek(df["timestamp"]) == 6) | (dayofweek(df["timestamp"]) == 7))
+    # Créez un DataFrame temporaire qui contient uniquement les lignes qui respectent le filtre Weekend
+    df_weekend = df.filter(weekend_condition)
+    # Effectuez le join sur le DataFrame temporaire
+    df = df_weekend.join(clustersWeekend_exploded, 'id', 'left').drop('cluster')
 
     # Identifiez les id de bruit
     noise_ids_home = [row['id'] for row in clustersHome.filter(clustersHome.cluster == -1).select('id').collect()]
@@ -124,9 +141,9 @@ def beurre(df, spark):
 
     # ===================dfDL A REPLACER ICI===================
     # Création d'un DataFrame avec les lignes à supprimer
-    dfDEL = df.filter(~((hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18) & ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 5)))
-                      &~((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 5)))
-                      &~(((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 5)))
+    dfDEL = df.filter(~((hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18) & ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 6)))
+                      &~((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))
+                      &~(((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))
                       )    
     # Créer une liste des lignes dans dfDEL
     dfDEL.show()
@@ -151,7 +168,7 @@ def beurre(df, spark):
 
 
 if __name__ == '__main__':
-    df, spark = readfile("ReferencePseudo2.csv/part-00000-15235927-8780-4692-af99-05af210939da-c000.csv")
+    df, spark = readfile("res.csv")
     beurre(df, spark)
 
 
