@@ -185,7 +185,7 @@ def beurre(df, spark):
 
     df.show()
     # Assigner l'id "DEL" à toutes les lignes qui ont 0 en latitude
-    df = df.withColumn('id', when(df.final_suppr == 0  & (rand() <= 0.9), "DEL").otherwise(df.id))
+    df = df.withColumn('id', when((df.final_suppr == 0)  & (rand() <= 0.9), "DEL").otherwise(df.id))
     df = df.withColumn('longitude', when(df.final_suppr == 0, round(df.longitude, 2)))
     df = df.withColumn('latitude', when(df.final_suppr == 0, round(df.latitude, 2)))
 
@@ -195,16 +195,19 @@ def beurre(df, spark):
 
     # ========================dfDL========================
     # Création d'un DataFrame avec les lignes à supprimer
-    dfDEL = df.filter(~((hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18) & ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 6)))
-                      &~((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))
-                      &~(((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))
-                      )
-    # Créer une liste des lignes dans dfDEL
-    dfDEL.show()
-    del_ids = [row['numero_ligne'] for row in dfDEL.select('numero_ligne').distinct().collect()]
-    print("Voici les numéro des lignes qui seront supprimer :",del_ids)
-    # Assigner "DEL" à l'identifiant des lignes de df quai sont dans dfDEL
-    df = df.withColumn('id', when(col('numero_ligne').isin(del_ids), "DEL").otherwise(col('id')))
+    # dfDEL = df.filter(~((hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18) & ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 6)))
+    #                   &~((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))
+    #                   &~(((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))
+    #                   )
+    # # Créer une liste des lignes dans dfDEL
+    # dfDEL.show()
+    # del_ids = [row['numero_ligne'] for row in dfDEL.select('numero_ligne').distinct().collect()]
+    # print("Voici les numéro des lignes qui seront supprimer :",del_ids)
+    # # Assigner "DEL" à l'identifiant des lignes de df quai sont dans dfDEL
+    # df = df.withColumn('id', when(col('numero_ligne').isin(del_ids), "DEL").otherwise(col('id')))
+
+    df = df.withColumn("id", when((conditionHome|conditionWork|ConditionWeekend), col("id")).otherwise("DEL"))
+
 
     # Arrondir le champ 'timestamp' à l'heure la plus proche
     df = df.withColumn('timestamp', date_trunc('hour', 'timestamp'))
@@ -222,7 +225,7 @@ def beurre(df, spark):
 
 
 if __name__ == '__main__':
-    df, spark = readfile("res.csv")
+    df, spark = readfile("ReferencePseudo.csv/part-00000-0ac17880-ad86-4d78-a892-e1ea4e0447cd-c000.csv")
     beurre(df, spark)
 
 
