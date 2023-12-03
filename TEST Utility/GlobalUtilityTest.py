@@ -12,18 +12,23 @@ def mesureUtility(OGFile, AnonymFile, separator):
     somme = 0
     print("Etape 1")
     somme += dateUtil.main(nona_reader,anon_reader)
+    print(somme)
     seek_files(fd_nona_file,fd_anon_file)
     print("Etape 2")
     somme += distanceServ.main(nona_reader,anon_reader)
+    print(somme)
     seek_files(fd_nona_file, fd_anon_file)
     print("Etape 3")
     somme += hourUtil.main(nona_reader,anon_reader)
+    print(somme)
     seek_files(fd_nona_file, fd_anon_file)
     print("Etape 4")
     somme += meet.main(nona_reader,anon_reader)
+    print(somme)
     seek_files(fd_nona_file, fd_anon_file)
     print("Etape 5")
     somme += POI.main(nona_reader,anon_reader)
+    print(somme)
     seek_files(fd_nona_file, fd_anon_file)
     print("Etape 6")
     somme += tuile.main(nona_reader,anon_reader)
@@ -32,4 +37,4 @@ def mesureUtility(OGFile, AnonymFile, separator):
     return moyenne
 
 
-mesureUtility("../../default.csv","../../default.csv",'\t')
+mesureUtility("ReferenceINSA.csv","final.csv/part-00000-b88ada65-4a32-4aab-bb38-7a1dfcc29904-c000.csv",'\t')

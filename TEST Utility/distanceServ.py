@@ -38,8 +38,9 @@ def main(nona_reader, anon_reader, parameters={"dx":0.1}):
     filesize = 0
 
     #read the files and calcul
-    for lineAno, lineNonAno in zip(nona_reader, anon_reader):
+    for lineAno, lineNonAno in zip(anon_reader, nona_reader):
         filesize += 1
+        # print(lineAno)
         if lineAno[0] != "DEL":
             diff_lat = abs(float(lineNonAno[3])-float(lineAno[3]))
             diff_long = abs(float(lineNonAno[2])-float(lineAno[2]))
