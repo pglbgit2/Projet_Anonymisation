@@ -53,14 +53,26 @@ if __name__ == "__main__":
         sys.exit(1)
 
     df = readfile(sys.argv[1])
+    df.show()
     df = df.withColumn('week', weekofyear(df['timestamp']))
+    df.show()
     idPseudoDic = {}
     generatedStrings = set()
     generatedStrings.add('')
     pseudonymise_udf = udf(lambda z: pseudonymize(z, idPseudoDic, generatedStrings), StringType())
     anonymised = df.withColumn('anonymId', pseudonymise_udf(array('id', 'week')))
+    df.show()
     anonymised = anonymised.withColumn('id', anonymised['anonymId']).drop('anonymId')  # Replace 'id' with 'anonymId' and drop 'anonymId'
+    df.show()
     print(">after pseudonymisation")
     anonymised = anonymised.filter(df['id'].isNotNull())  # Filter out rows with null or empty 'id'
+    df.show()
     anonymised = anonymised.drop('week', 'numero_ligne')  # Drop 'week' and 'numero_ligne' columns
-    anonymised.coalesce(1).write.csv(sys.argv[2], header=False,  mode="overwrite", sep="\t")
+    df.show()
+    # anonymised.coalesce(1).write.csv(sys.argv[2], header=False,  mode="overwrite", sep="\t")
+    anonymised.coalesce(1).write.format("csv"
+                            ).mode('overwrite'
+                            ).option("delimiter","\t"
+                            ).option("header", "false"
+                            ).option("timestampFormat", "yyyy-MM-dd HH:mm:ss"
+                            ).save(sys.argv[2])

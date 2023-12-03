@@ -28,9 +28,9 @@ def readfile(path: str):
     
 
 def beurre(df, spark):
-    dfHome = df.filter(((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 5)))  # Jours du lundi au jeudi (2=lundi selon ChatGPT)
-    dfWork = df.filter((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 5)))
-    dfWeekend = df.filter((hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18) & ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 5)))
+    dfHome = df.filter(((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))  # Jours du lundi au jeudi (2=lundi selon ChatGPT)
+    dfWork = df.filter((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))
+    dfWeekend = df.filter((hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18) & ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 6)))
 
 
     
@@ -76,6 +76,10 @@ def beurre(df, spark):
     noise_ids_work = [row['id'] for row in clustersWork.filter(clustersWork.cluster == -1).select('id').collect()]
     noise_ids_weekend = [row['id'] for row in clustersWeekend.filter(clustersWeekend.cluster == -1).select('id').collect()]
 
+    print("Noise_Home", noise_ids_home)
+    print("Noise_Work", noise_ids_work)
+    print("Noise_Weekend", noise_ids_weekend)
+
     # Convertir les listes en DataFrames
     noise_ids_home_df = spark.createDataFrame(noise_ids_home, StringType()).toDF('home_id')
     noise_ids_work_df = spark.createDataFrame(noise_ids_work, StringType()).toDF('work_id')
@@ -85,14 +89,14 @@ def beurre(df, spark):
     df = df.join(noise_ids_home_df, df.id == noise_ids_home_df.home_id, 'left_outer') \
         .withColumn('latitude', when((col('home_id').isNotNull()) & 
                          ((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & 
-                         ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 5)), 
+                         ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)), 
                          0).otherwise(df.latitude)) \
         .drop(noise_ids_home_df.home_id)
     # ---------------------DEBUG--------------------
     # Créez une condition pour les lignes qui seront modifiées
     condition = ((col('home_id').isNotNull()) & 
                 ((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & 
-                ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 5)))
+                ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))
 
     # Créez un DataFrame temporaire qui contient uniquement les lignes qui seront modifiées
     temp_df = df.join(noise_ids_home_df, df.id == noise_ids_home_df.home_id, 'left_outer').filter(condition)
@@ -103,14 +107,14 @@ def beurre(df, spark):
     df = df.join(noise_ids_work_df, df.id == noise_ids_work_df.work_id, 'left_outer') \
         .withColumn('latitude', when((col('work_id').isNotNull()) &
                          ((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16) & 
-                         ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 5))), 
+                         ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6))), 
                          0).otherwise(df.latitude)) \
         .drop(noise_ids_work_df.work_id)
 
     df = df.join(noise_ids_weekend_df, df.id == noise_ids_weekend_df.weekend_id, 'left_outer') \
         .withColumn('latitude', when((col('weekend_id').isNotNull()) &
                          (hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18) & 
-                         ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 5)),
+                         ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 6)),
                          0).otherwise(df.latitude)) \
         .drop(noise_ids_weekend_df.weekend_id)
     # Assigner l'id "DEL" à toutes les lignes qui ont 0 en latitude
@@ -118,7 +122,7 @@ def beurre(df, spark):
 
     # Supprimer les lignes qui ne sont pas calculer dans les POI
     # Création d'un DataFrame avec les lignes à supprimer
-    dfDEL = df.filter(~(hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18) & ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 5))&~(hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 5))&~((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 5)))    
+    dfDEL = df.filter((~((hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18)) & ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 6)))|(~((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16)) & ((dayofweek(df["timestamp"]) >= 2) | (dayofweek(df["timestamp"]) <= 6)))|(~((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & ((dayofweek(df["timestamp"]) >= 2) | (dayofweek(df["timestamp"]) <= 6))))    
     # Créer une liste des lignes dans dfDEL
     dfDEL.show()
     del_ids = [row['numero_ligne'] for row in dfDEL.select('numero_ligne').distinct().collect()]
@@ -142,7 +146,7 @@ def beurre(df, spark):
 
 
 if __name__ == '__main__':
-    df, spark = readfile("res.csv")
+    df, spark = readfile("ReferencePseudo2.csv/part-00000-15235927-8780-4692-af99-05af210939da-c000.csv")
     beurre(df, spark)
 
 
