@@ -1,14 +1,14 @@
 import string
 from functools import reduce
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import coalesce, collect_list, lit, when, date_trunc, avg, hour, randn, col, weekofyear, monotonically_increasing_id, expr, row_number, dayofweek, explode, from_unixtime, unix_timestamp
+from pyspark.sql.functions import coalesce, collect_list, lit, when, date_trunc, avg, hour, rand, randn, col, weekofyear, monotonically_increasing_id, expr, row_number, dayofweek, explode, from_unixtime, unix_timestamp, round
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 import CSVManager
 import pandas as pd
 from itertools import tee
 from dbscan import perform_dbscan_clustering
 
-PrecisionGPS = 0.008
+PrecisionGPS = 0.01
 # 1km = 0.008983 degrés de latitude/longitude
 
 
@@ -180,28 +180,36 @@ def beurre(df, spark):
 
 
     # ========================Suppression du Noise========================
-
+    print("avant")
+    df.show()
     df = df.withColumn('final_suppr', coalesce(df['suppr'], df['suppr1'], df['suppr2']))
-
+    print("après")
+    df.show()
     df.show()
     # Assigner l'id "DEL" à toutes les lignes qui ont 0 en latitude
-    df = df.withColumn('id', when(df.final_suppr == 0, "DEL").otherwise(df.id))
+    df = df.withColumn('id', when((df.final_suppr == 0)  & (rand() <= 0.9), "DEL").otherwise(df.id))
+    df = df.withColumn('longitude', when(df.final_suppr == 0, round(df.longitude, 2)).otherwise(df.longitude))
+    df = df.withColumn('latitude', when(df.final_suppr == 0, round(df.latitude, 2)).otherwise(df.latitude))
+    df.show()
     df = df.drop('suppr', 'suppr1', 'suppr2', 'final_suppr')
 
     # Supprimer les lignes qui ne sont pas calculer dans les POI
 
     # ========================dfDL========================
     # Création d'un DataFrame avec les lignes à supprimer
-    dfDEL = df.filter(~((hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18) & ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 6)))
-                      &~((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))
-                      &~(((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))
-                      )
-    # Créer une liste des lignes dans dfDEL
-    dfDEL.show()
-    del_ids = [row['numero_ligne'] for row in dfDEL.select('numero_ligne').distinct().collect()]
-    print("Voici les numéro des lignes qui seront supprimer :",del_ids)
-    # Assigner "DEL" à l'identifiant des lignes de df quai sont dans dfDEL
-    df = df.withColumn('id', when(col('numero_ligne').isin(del_ids), "DEL").otherwise(col('id')))
+    # dfDEL = df.filter(~((hour(df["timestamp"]) >= 10) & (hour(df["timestamp"]) < 18) & ((dayofweek(df["timestamp"]) < 2) | (dayofweek(df["timestamp"]) > 6)))
+    #                   &~((hour(df["timestamp"]) >= 9) & (hour(df["timestamp"]) < 16) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))
+    #                   &~(((hour(df["timestamp"]) >= 22) | (hour(df["timestamp"]) < 6)) & ((dayofweek(df["timestamp"]) >= 2) & (dayofweek(df["timestamp"]) <= 6)))
+    #                   )
+    # # Créer une liste des lignes dans dfDEL
+    # dfDEL.show()
+    # del_ids = [row['numero_ligne'] for row in dfDEL.select('numero_ligne').distinct().collect()]
+    # print("Voici les numéro des lignes qui seront supprimer :",del_ids)
+    # # Assigner "DEL" à l'identifiant des lignes de df quai sont dans dfDEL
+    # df = df.withColumn('id', when(col('numero_ligne').isin(del_ids), "DEL").otherwise(col('id')))
+
+    df = df.withColumn("id", when((conditionHome|conditionWork|ConditionWeekend), col("id")).otherwise("DEL"))
+
 
     # Arrondir le champ 'timestamp' à l'heure la plus proche
     df = df.withColumn('timestamp', date_trunc('hour', 'timestamp'))
@@ -219,8 +227,5 @@ def beurre(df, spark):
 
 
 if __name__ == '__main__':
-    df, spark = readfile("res.csv")
+    df, spark = readfile("res3.csv")
     beurre(df, spark)
-
-
-
