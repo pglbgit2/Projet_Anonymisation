@@ -1,5 +1,5 @@
-# PSEUDO CODE de la défense kouign amann  
-### Métrique à prendre en compte :  
+# Mode d'emploi TSAR BOMBA
+### Métrique :  
 - Date Utility (Pas besoin de modifié dans un premier temps, mais faire attention en cas de volonté de pollution)  
 - Hour Utility (On vérifier sur le calcule mais l'arrondi à l'heure semble correct)  
 - Point of Interest (On va se basé sur cette métrique pour l'anonymisation)  
