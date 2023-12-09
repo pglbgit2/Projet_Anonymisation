@@ -1,56 +1,41 @@
-# PSEUDO CODE de la défense kouign amann
-### Métrique à prendre en compte :
-- Date Utility (Pas besoin de modifié dans un premier temps, mais faire attention en cas de volonté de pollution)
-- Hour Utility (On vérifier sur le calcule mais l'arrondi à l'heure semble correct)
-- Point of Interest (On va se basé sur cette métrique pour l'anonymisation)
-- Distance Utility (pour un 50% d'utilité il faut rester dans la même ville (0.1))
-- Meet Utility (ce fera naturellement)
-- Tuile Utility (celui qu'on abandonne à 99%)
+# PSEUDO CODE de la défense kouign amann  
+### Métrique à prendre en compte :  
+- Date Utility (Pas besoin de modifié dans un premier temps, mais faire attention en cas de volonté de pollution)  
+- Hour Utility (On vérifier sur le calcule mais l'arrondi à l'heure semble correct)  
+- Point of Interest (On va se basé sur cette métrique pour l'anonymisation)  
+- Distance Utility (pour un 50% d'utilité il faut rester dans la même ville (0.1))  
+- Meet Utility (ce fera naturellement)  
+- Tuile Utility (celui qu'on abandonne à 99%)  
 
-### Idée de base : 
-Utiliser la méthode de k-anonymisation sur les points of interest et l'abusée au point de rassembler un très grand nombre d'id dessus
+### Idée de base :  
+Quel défense ont pu mettre en place les ennemis ?  
+- Bruit basique + k-anonymat sur les heures  
+- Défense sur les POI comme kouign amann  
+Il faudrait pouvoir identifier sur quels défenses ils se sont orientés  
+	Il faut donc essayer de chercher à savoir si il y a un choix dans leur suppression de lignes  
+Si ils ne se sont pas orienté vers les POI :  
+	On peut essayer de simplement faire des calcules de moyennes tout les jours et comparer avec le fichier de base  
+Si ils se sont orienté vers les POI :  
+	Faire une attaque en calculant par semaine les moyennes de chaque POI et comparer avec le fichier de base  
+Si il y a moyen de désanonymiser les lignes DEL on peut compter les lignes manquantes théorique et comparer  
 
-#### Entrée : 
-BDD avec les id déjà anonymisé
-		(permet de différencié dès le début pour les métriques)
+#### Idées d'Algorithmes :  
+Analyse des DEL:  
+	lire les DEL et chercher à savoir si il y a un grand nombre de DEL qui se ressemble sur les heures ou coordonnées  
 
-#### Sortie : 
-BDD anonymisé "kouign_amann.csv"
+Identification des DEL:  
+	Jointure de base et si possible voir si la jointure à fonctionné  
 
-#### Début :
-	ChargerLaBDD(default.csv)
-	pour tous les ids:
-		calculer des différents points of interest
-	tant que tout les ids ne sont pas traité: // l'idée est de s'arrêter lorsque tout les couples sont soit dans groupe soit gérer autrement
-		pour tous les "places" identifié:
-			rassembler les couples (id;POI) qui sont proches (cf: distance utility)
-		pour tous les couples (id;POI) seuls:
-			//A comparer
-			soit:
-				aggrandir la marge de distance utility pour rattaché les autres MAIS il faut marqué les couples éloigné pour plus tard
-			soit:
-				les abandonner à leurs sorts (ils seront probablement réidentifié sans difficulté mais on sauve de l'efficacité)
-			soit:
-				rassembler une partie/tous les seuls ça nique l'utilité mais pollue l'identification (probablement à calculé le (bénéfice potentiel/pertes d'utilité))
-			// Si idée supplémentaire proposé ici:
+Attaque sur les moyennes:  
+	Comparer les moyennes pour chaque jour avec le fichier de base  
+	L'ID qui correspond le plus est estimé comme étant le bon  
+	Prendre en compte une mémoire pour traiter les ID déjà identifié et qu'ils brouillent pas les autres identification  
+	Si possible afficher un pourcentage de réussite et de confiance  
 
-	//Modification minim à faire selon choix des solos
-	pour tous les groupes:
-		calculer une moyenne de tout les POI SAUF LES MARQUÉS(cf couples seuls)
-		assigner à l'ensemble des lignes concerné par les couples, dans les valeurs de localisation, la moyenne calculé
-		
-	//Finition
-	arrondir les heures
+Attaque sur les POI:  
+	Refaire les calcules de début de kouign amann sur les moyennes de chaque POI pour le dataset attaqué et le default  
+	Comparer les moyennes de chaque POI  
+	Si possible afficher un pourcentage de réussite et de confiance  
 
-	//Encore une fois à comparer mais je pense que l'option A est mieux car plus utilisé par les autres groupes
-	pour toutes les lignes qui ne sont pas prise en compte dans le calcule de POI:
-		//Option A
-		assigner DELL à l'id
-		//Option B
-		random(HEURE,JOUR,LOCALISATION)
-		//Option C
-		//trouver un moyen de monter le score d'utilité en ne détruisant pas l'anonymisation faites avant car les id sont en commun
 #### Amélioration :
-Manque la suppression des lignes (DEL)  
-Anonymisation du bruit hors cluster  
-Peut être arrondir les coordonnées pour caché le fait que ce soit des moyennes  
+
