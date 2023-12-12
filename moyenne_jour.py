@@ -7,6 +7,7 @@ from pyspark.sql.window import Window
 import CSVManager
 import pandas as pd
 from itertools import tee
+import tojson
 
 def readfile(path: str):
     spark = SparkSession.builder.appName("loader")\
@@ -48,7 +49,7 @@ if __name__ == '__main__':
     dfDef_avg = dfDef_avg.withColumnRenamed("window", "def_window").withColumnRenamed("avg_longitude", "def_avg_longitude").withColumnRenamed("avg_latitude", "def_avg_latitude").withColumnRenamed("id", "def_id")
 
     # Joindre les deux DataFrames sur l'heure
-    dfJoined = dfVic_avg.join(dfDef_avg, ["hour", "day"], "inner")
+    dfJoined = dfDef_avg.join(dfVic_avg, ["hour", "day"], "inner")
 
     # Calculer la distance entre les moyennes des coordonnées GPS
     dfJoined = dfJoined.withColumn("distance", ((dfJoined.vic_avg_longitude - dfJoined.def_avg_longitude) ** 2 + (dfJoined.vic_avg_latitude - dfJoined.def_avg_latitude) ** 2) ** 0.5)
@@ -68,7 +69,27 @@ if __name__ == '__main__':
 
     # Afficher les résultats
     dfFinal.show(100)
+    dfFinal = dfFinal.drop("distance")
+    dfFinal = dfFinal.select("def_id", "week", "vic_id")
+    dfFinal.withColumnRenamed("def_id", "ID")    # 3 colonnes : ID, Date, ID_Anon
+    dfFinal.withColumnRenamed("week", "Date")
+    dfFinal.withColumnRenamed("vic_id", "ID_Anon")
+    mergedpd = dfFinal.toPandas()
+    idlisttab = dfDef.select("id").distinct()
+    idlisttab = idlisttab.toPandas().values.tolist()
+    idlist = []
+    for id in idlisttab:
+        idlist.append(id[0])
+    json_out = tojson.dataframeToJSON(mergedpd,True, idlist)
+    with open("resultat.json", "w") as outfile:
+        outfile.write(json_out)
 
 #TODO: Rassembler pour chaque semaine les id proches pour chaque intervalles 
 #      et les mettre dans un fichier json
 #      afficher la moyennes des distances pour les jointures qui ont amené des résultats afin de determiner l'efficacité de l'attaque
+
+
+
+# Inverser la jointure de les id default sur victime plutôt que victime sur default
+# Vérifier qu'un id n'est pas présent sur plusieurs semaines côté victime
+
