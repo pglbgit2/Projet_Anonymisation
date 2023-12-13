@@ -32,7 +32,7 @@ def correlateByAvgDistanceFromRefPointWithLimit(df1, df2, limit, precision):
     print("filtering with limit")
     filteredDf1 = df1.filter((abs(df1.latitude - reference_latitude) > limit) & (abs(df1.longitude - reference_longitude) > limit))
     filteredDf2 = df2.filter((abs(df2.latitude - reference_latitude) > limit) & (abs(df2.longitude - reference_longitude) > limit))
-    return correlateByAvgLocalisation(filteredDf1, filteredDf2, precision)    
+    return correlateByAvgLocalisation(filteredDf1, filteredDf2, precision, 9, 16, 22, 6)    
 
 def moyenneParIdParSemaine(df, nomidentifiant):
     return df.groupBy(nomidentifiant, "week").agg(avg("longitude").alias("avg_longitude"), avg("latitude").alias("avg_latitude"))
@@ -129,7 +129,7 @@ def merge_dataframes(dataframes_list):
 
 
 def attackfile(filename):
-    Origindf = readfile("../ReferenceINSA.csv")
+    Origindf = readfile("ReferenceINSA.csv")
     print(">after reading original file")
     Anonymdf = readfile(filename)
     print(">after reading anonymized file")
@@ -138,7 +138,7 @@ def attackfile(filename):
     print(">after re-naming columns")
 
     DataframeList = []
-    TestPrecision = [0.0001, 0.0003, 0.0005, 0.0007, 0.001, 0.003]
+    TestPrecision = [0.0001, 0.0003, 0.0005, 0.0007, 0.001, 0.003, 0.01, 0.03, 0.1, 0.3]
     for p in TestPrecision:
         DataframeList.append(correlateByAvgLocalisation(9, 16, 22, 6, Origindf, Anonymdf, p))
         
@@ -156,6 +156,6 @@ def attackfile(filename):
     for id in idlisttab:
         idlist.append(id[0])
     json_out = tojson.dataframeToJSON(mergedpd,True, idlist)
-    with open("identifiedfinal2.json", "w") as outfile:
+    with open("identified701_2.json", "w") as outfile:
         outfile.write(json_out)
-attackfile("amitous_584/amitous_584.csv")
+attackfile("files/VinAnonyme_701_clean.csv")
