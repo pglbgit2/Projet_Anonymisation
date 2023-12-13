@@ -61,15 +61,31 @@ if __name__ == '__main__':
     windowSpec = Window.partitionBy("week", "def_id").orderBy("distance")
     dfJoined = dfJoined.withColumn("rank", row_number().over(windowSpec))
 
-    # Sélectionner uniquement les lignes avec le rang 1, c'est-à-dire la distance minimale pour chaque semaine et chaque "def_id"
-    dfMinDistance = dfJoined.filter(dfJoined.rank == 1)
+    # Sélectionner uniquement les lignes avec le rang 1, c'est-à-dire la distance minimale pour chaque semaine et chaque "vic_id"
+    # dfMinDistance = dfJoined.filter(dfJoined.rank == 1)
+
+    # Définir la fenêtre de partitionnement
+    windowSpec = Window.partitionBy("def_id", "week").orderBy("vic_window.start")
+
+    # Ajouter une colonne "rank" qui donne le rang de chaque ligne dans sa partition
+    dfJoined = dfJoined.withColumn("rank", row_number().over(windowSpec))
+    dfJoined.show(500)
+    # Sélectionner uniquement les 24 premières lignes pour chaque "vic_id"
+    dfTop24 = dfJoined.filter(dfJoined.rank <= 12)
+
+    # Compter la fréquence de chaque "def_id" pour chaque "vic_id"
+    dfCount = dfJoined.groupBy("vic_id", "def_id", "week").count()
+
+    # Trier par fréquence et sélectionner l'ID le plus fréquent pour chaque "vic_id"
+    windowSpec2 = Window.partitionBy("def_id", "week").orderBy(dfCount["count"].desc())
+    dfMostFrequent = dfCount.withColumn("rank", row_number().over(windowSpec2)).filter(col("rank") == 1)
 
     # Sélectionner uniquement les colonnes nécessaires
-    dfFinal = dfMinDistance.select("vic_id", "def_id", "week", "distance")
+    dfFinal = dfMostFrequent.select("vic_id", "def_id", "week")
 
     # Afficher les résultats
-    dfFinal.show(100)
-    dfFinal = dfFinal.drop("distance")
+    #dfFinal.show(100)
+    #dfFinal = dfFinal.drop("distance")
     dfFinal = dfFinal.select("def_id", "week", "vic_id")
     dfFinal.withColumnRenamed("def_id", "ID")    # 3 colonnes : ID, Date, ID_Anon
     dfFinal.withColumnRenamed("week", "Date")
