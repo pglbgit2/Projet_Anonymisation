@@ -1,7 +1,7 @@
 import string
 from functools import reduce
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import window, coalesce, collect_list, lit, when, date_trunc, avg, hour, rand, rand, randn, col, weekofyear, monotonically_increasing_id, expr, row_number, dayofweek, explode, from_unixtime, unix_timestamp, round, round
+from pyspark.sql.functions import window, coalesce, collect_list, lit, when, date_trunc, avg, hour, rand, randn, col, weekofyear, monotonically_increasing_id, expr, row_number, dayofweek, explode, from_unixtime, unix_timestamp, round
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 from pyspark.sql.window import Window
 import CSVManager
@@ -33,6 +33,9 @@ def calcule_avgCoord(df):
     # Extraire l'heure de début de la fenêtre pour faciliter la jointure plus tard
     df_avg = df_avg.withColumn("hour", hour(df_avg["window.start"]))
 
+    # Extraire la date sans l'heure
+    df_avg = df_avg.withColumn("date", date_trunc("day", df_avg["window.start"]))
+    
     return df_avg
 
     
@@ -45,11 +48,12 @@ if __name__ == '__main__':
     dfDef_avg = calcule_avgCoord(dfDef)
 
     # Renommer les colonnes avant de faire la jointure
-    dfVic_avg = dfVic_avg.withColumnRenamed("window", "vic_window").withColumnRenamed("avg_longitude", "vic_avg_longitude").withColumnRenamed("avg_latitude", "vic_avg_latitude").withColumnRenamed("id", "vic_id")
-    dfDef_avg = dfDef_avg.withColumnRenamed("window", "def_window").withColumnRenamed("avg_longitude", "def_avg_longitude").withColumnRenamed("avg_latitude", "def_avg_latitude").withColumnRenamed("id", "def_id")
+    dfVic_avg = dfVic_avg.withColumnRenamed("window", "vic_window").withColumnRenamed("avg_longitude", "vic_avg_longitude").withColumnRenamed("avg_latitude", "vic_avg_latitude").withColumnRenamed("id", "vic_id").withColumnRenamed("date", "vic_date")
+    dfDef_avg = dfDef_avg.withColumnRenamed("window", "def_window").withColumnRenamed("avg_longitude", "def_avg_longitude").withColumnRenamed("avg_latitude", "def_avg_latitude").withColumnRenamed("id", "def_id").withColumnRenamed("date", "def_date")
 
-    # Joindre les deux DataFrames sur l'heure
-    dfJoined = dfDef_avg.join(dfVic_avg, ["hour", "day"], "inner")
+    # Joindre les deux DataFrames sur la date, l'heure et le jour
+    dfJoined = dfDef_avg.join(dfVic_avg, (dfDef_avg.def_date == dfVic_avg.vic_date) & (dfDef_avg.hour == dfVic_avg.hour) & (dfDef_avg.day == dfVic_avg.day), "inner")    
+    dfJoined.show(500)
 
     # Calculer la distance entre les moyennes des coordonnées GPS
     dfJoined = dfJoined.withColumn("distance", ((dfJoined.vic_avg_longitude - dfJoined.def_avg_longitude) ** 2 + (dfJoined.vic_avg_latitude - dfJoined.def_avg_latitude) ** 2) ** 0.5)
@@ -61,20 +65,21 @@ if __name__ == '__main__':
     windowSpec = Window.partitionBy("week", "def_id").orderBy("distance")
     dfJoined = dfJoined.withColumn("rank", row_number().over(windowSpec))
 
-    # Sélectionner uniquement les lignes avec le rang 1, c'est-à-dire la distance minimale pour chaque semaine et chaque "vic_id"
-    # dfMinDistance = dfJoined.filter(dfJoined.rank == 1)
-
     # Définir la fenêtre de partitionnement
     windowSpec = Window.partitionBy("def_id", "week").orderBy("vic_window.start")
 
     # Ajouter une colonne "rank" qui donne le rang de chaque ligne dans sa partition
     dfJoined = dfJoined.withColumn("rank", row_number().over(windowSpec))
     dfJoined.show(500)
+
+    # Sélectionner uniquement les lignes avec le rang 1, c'est-à-dire la distance minimale pour chaque semaine et chaque "vic_id"
+    dfMinDistance = dfJoined.filter(dfJoined.rank == 1)
+
     # Sélectionner uniquement les 24 premières lignes pour chaque "vic_id"
-    dfTop24 = dfJoined.filter(dfJoined.rank <= 12)
+    dfTop24 = dfJoined.filter(dfJoined.rank <= 24)
 
     # Compter la fréquence de chaque "def_id" pour chaque "vic_id"
-    dfCount = dfJoined.groupBy("vic_id", "def_id", "week").count()
+    dfCount = dfMinDistance.groupBy("vic_id", "def_id", "week").count()
 
     # Trier par fréquence et sélectionner l'ID le plus fréquent pour chaque "vic_id"
     windowSpec2 = Window.partitionBy("def_id", "week").orderBy(dfCount["count"].desc())
@@ -87,9 +92,9 @@ if __name__ == '__main__':
     #dfFinal.show(100)
     #dfFinal = dfFinal.drop("distance")
     dfFinal = dfFinal.select("def_id", "week", "vic_id")
-    dfFinal.withColumnRenamed("def_id", "ID")    # 3 colonnes : ID, Date, ID_Anon
-    dfFinal.withColumnRenamed("week", "Date")
-    dfFinal.withColumnRenamed("vic_id", "ID_Anon")
+    dfFinal = dfFinal.withColumnRenamed("def_id", "ID")    # 3 colonnes : ID, Date, ID_Anon
+    dfFinal = dfFinal.withColumnRenamed("week", "Date")
+    dfFinal = dfFinal.withColumnRenamed("vic_id", "ID_Anon")
     mergedpd = dfFinal.toPandas()
     idlisttab = dfDef.select("id").distinct()
     idlisttab = idlisttab.toPandas().values.tolist()
