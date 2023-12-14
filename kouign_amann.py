@@ -185,7 +185,9 @@ def beurre(df, spark):
 
     df.show()
     # Assigner l'id "DEL" à toutes les lignes qui ont 0 en latitude
-    df = df.withColumn('id', when(df.final_suppr == 0, "DEL").otherwise(df.id))
+    df = df.withColumn('id', when((df.final_suppr == 0)  & (rand() <= 0.9), "DEL").otherwise(df.id))
+    df = df.withColumn('longitude', when(df.final_suppr == 0, round(df.longitude, 2)).otherwise(df.longitude))
+    df = df.withColumn('latitude', when(df.final_suppr == 0, round(df.latitude, 2)).otherwise(df.latitude))
     df = df.drop('suppr', 'suppr1', 'suppr2', 'final_suppr')
 
     # Supprimer les lignes qui ne sont pas calculer dans les POI
