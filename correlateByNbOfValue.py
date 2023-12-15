@@ -35,8 +35,9 @@ original_df = original_df.withColumn("monthOG_week", weekofyear("timestamp"))
 modified_df = modified_df.withColumn("monthAno_week", weekofyear("timestamp"))
 print(">after selecting month-year")
 original_counts = original_df.groupBy("idOg","monthOG_week").agg(count("*").alias("count_original"))
-original_counts.withColumn("count_original", (original_counts.count_original *(nb_lignes_ori/nb_lignes_mod)))
 modified_counts = modified_df.groupBy("idAno","monthAno_week" ).agg(count("*").alias("count_anonym"))
+modified_count = modified_counts.withColumn("count_original", (modified_counts.count_anonym *(nb_lignes_ori/nb_lignes_mod)))
+
 print(">after counting lines in file by month and id")
 
 
