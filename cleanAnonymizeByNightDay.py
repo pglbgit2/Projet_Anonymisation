@@ -2,7 +2,7 @@ import random
 import string
 from functools import reduce
 from pyspark.sql import SparkSession
-from pyspark.sql.functions import avg, hour, dayofweek, randn, col, weekofyear, monotonically_increasing_id, expr, udf, array, lit
+from pyspark.sql.functions import avg, hour, dayofweek, rand, randn, col, weekofyear, monotonically_increasing_id, expr, udf, array, lit, round
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
 import random
 import CSVManager
@@ -75,16 +75,24 @@ def anonymiseDayNightWeekend(startOfTheWork, endOfTheWork, startOfTheNight, endO
 
     print("> After average location")
 
-    values_jour = dfWork.join(avg_jour, ["id", "week"]).withColumn("new_longitude", col("avg_longitude") + randn(
-        seed=23) * variation * NegativePositiveInteger()).withColumn("new_latitude", col("avg_latitude") + randn(seed=42) * variation*NegativePositiveInteger()).drop(
+    # values_jour = dfWork.join(avg_jour, ["id", "week"]).withColumn("new_longitude", col("avg_longitude") + randn(seed=23) * variation * NegativePositiveInteger()).withColumn("new_latitude", col("avg_latitude") + randn(seed=42) * variation*NegativePositiveInteger()).drop(
+    #     "avg_longitude", "avg_latitude")
+    # values_nuit = dfNight.join(avg_nuit, ["id", "week"]).withColumn("new_longitude", col("avg_longitude") + randn(
+    #     seed=34) * variation * NegativePositiveInteger()).withColumn("new_latitude", col("avg_latitude") + randn(seed=42) * variation*NegativePositiveInteger()).drop(
+    #     "avg_longitude", "avg_latitude")
+    # values_weekend = dfWeekend.join(avg_weekend, ["id", "week"]).withColumn("new_longitude", col("avg_longitude") + randn(
+    #     seed=26) * variation * NegativePositiveInteger()).withColumn("new_latitude", col("avg_latitude") + randn(seed=42) * variation*NegativePositiveInteger()).drop(
+    #     "avg_longitude", "avg_latitude")
+    # values_other = dfOther.withColumn("new_longitude", col("longitude")+ randn(seed=34) * variation * NegativePositiveInteger()).withColumn("new_latitude", col("latitude")+ randn(seed=34) * variation * NegativePositiveInteger())\
+    #     .select("id","week","timestamp","longitude","latitude","numero_ligne","dayOfWeek","type","new_longitude","new_latitude")
+
+    values_jour = dfWork.join(avg_jour, ["id", "week"]).withColumn("new_longitude", round(col("avg_longitude"),variation)+rand(seed=42)*10**(-variation)).withColumn("new_latitude", round(col("avg_latitude"),variation)+rand(seed=42)*10**(-variation)).drop(
         "avg_longitude", "avg_latitude")
-    values_nuit = dfNight.join(avg_nuit, ["id", "week"]).withColumn("new_longitude", col("avg_longitude") + randn(
-        seed=34) * variation * NegativePositiveInteger()).withColumn("new_latitude", col("avg_latitude") + randn(seed=42) * variation*NegativePositiveInteger()).drop(
+    values_nuit = dfNight.join(avg_nuit, ["id", "week"]).withColumn("new_longitude", round(col("avg_longitude"),variation)+rand(seed=42)*10**(-variation)).withColumn("new_latitude", round(col("avg_latitude"),variation)+rand(seed=42)*10**(-variation)).drop(
         "avg_longitude", "avg_latitude")
-    values_weekend = dfWeekend.join(avg_weekend, ["id", "week"]).withColumn("new_longitude", col("avg_longitude") + randn(
-        seed=26) * variation * NegativePositiveInteger()).withColumn("new_latitude", col("avg_latitude") + randn(seed=42) * variation*NegativePositiveInteger()).drop(
+    values_weekend = dfWeekend.join(avg_weekend, ["id", "week"]).withColumn("new_longitude", round(col("avg_longitude"),variation)+rand(seed=42)*10**(-variation)).withColumn("new_latitude", round(col("avg_latitude"),variation)+rand(seed=42)*10**(-variation)).drop(
         "avg_longitude", "avg_latitude")
-    values_other = dfOther.withColumn("new_longitude", col("longitude")+ randn(seed=34) * variation * NegativePositiveInteger()).withColumn("new_latitude", col("latitude")+ randn(seed=34) * variation * NegativePositiveInteger())\
+    values_other = dfOther.withColumn("new_longitude", round(col("longitude"),variation)+rand(seed=42)*10**(-variation)).withColumn("new_latitude", round(col("latitude"),variation)+rand(seed=42)*10**(-variation))\
         .select("id","week","timestamp","longitude","latitude","numero_ligne","dayOfWeek","type","new_longitude","new_latitude")
 
     values_jour.show()
@@ -174,12 +182,14 @@ def pseudonymise(array, idAno, generatedStrings):
     [id, week] = array
     if(id not in idAno):
         pseudo = generateString()
+        while pseudo in generatedStrings:
+            pseudo = generateString()
         idAno[id] = {}
         idAno[id][week] = pseudo
         return pseudo
     else:
         if(week not in idAno[id]):
-            pseudo = ''
+            pseudo = generateString()
             while pseudo in generatedStrings:
                 pseudo = generateString()
             idAno[id][week] = pseudo
@@ -206,5 +216,5 @@ if __name__=='__main__':
     #df.show()
     print(">after reading original file")
     # anonymize_but_not_completely(6, 22, df, 0.0001, "anonymFrangipane.csv")
-    anonymiseDayNightWeekend(9, 16, 22, 6, df, 0.0001, "anonymFrangipane.csv")
+    anonymiseDayNightWeekend(9, 16, 22, 6, df, 3, "anonymFrangipane1.csv")
 
