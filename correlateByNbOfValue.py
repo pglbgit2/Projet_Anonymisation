@@ -23,6 +23,8 @@ print(">after reading original file")
 modified_df = spark.read.csv("files/DataLockers_670_clean.csv", schema=schema, header=False, sep='\t')
 #modified_df = spark.read.csv("anonymisedTab.csv", schema=schema, header=True)
 nb_lignes_mod = modified_df.count()
+print(nb_lignes_ori)
+print(nb_lignes_mod)
 
 print(">after reading anonymized file")
 
@@ -36,7 +38,9 @@ modified_df = modified_df.withColumn("monthAno_week", weekofyear("timestamp"))
 print(">after selecting month-year")
 original_counts = original_df.groupBy("idOg","monthOG_week").agg(count("*").alias("count_original"))
 modified_counts = modified_df.groupBy("idAno","monthAno_week" ).agg(count("*").alias("count_anonym"))
-modified_count = modified_counts.withColumn("count_original", (modified_counts.count_anonym *(nb_lignes_ori/nb_lignes_mod)))
+# modified_counts.show()
+modified_counts = modified_counts.withColumn("count_anonym", (modified_counts.count_anonym * (nb_lignes_ori/nb_lignes_mod)))
+# modified_counts.show()
 
 print(">after counting lines in file by month and id")
 
@@ -53,9 +57,8 @@ print(">after counting lines in file by month and id")
 # CSVManager.writeTabCSVFile(lines_matching.toPandas(),"correlate")
 # #tojson.dataframeToJson(lines_matching,"autofill444", modified_df.count(),modified_df)
 joined_df = original_counts.join(modified_counts, (original_counts.monthOG_week == modified_counts.monthAno_week), "outer")
-window_spec = Window.partitionBy("idOg", "monthOG_week").orderBy(abs(original_counts.count_original - modified_counts.count_anonym))
-
-count_anonym = joined_df.drop_duplicates(["idOg", "monthOG_week"])
+joined_df.show()
+count_anonym = joined_df.orderBy("idOg", "monthOG_week", abs(joined_df.count_original - joined_df.count_anonym)).drop_duplicates(["idOg", "monthOG_week"])
 count_anonym = count_anonym.select("idOg", "monthOG_week", "idAno")
 
 count_anonym.show()
