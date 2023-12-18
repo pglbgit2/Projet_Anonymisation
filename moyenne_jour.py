@@ -8,6 +8,8 @@ import CSVManager
 import pandas as pd
 from itertools import tee
 import tojson
+import sys
+import os
 
 def readfile(path: str):
     spark = SparkSession.builder.appName("loader")\
@@ -41,8 +43,8 @@ def calcule_avgCoord(df):
     
 
 if __name__ == '__main__':
-    dfVic, spark = readfile("victime.csv")
-    dfDef, spark = readfile("../default.csv")
+    dfVic, spark = readfile(sys.argv[1])
+    dfDef, spark = readfile("/home/quentin/Documents/projetAnonym/default.csv")
 
     dfVic_avg = calcule_avgCoord(dfVic)
     dfDef_avg = calcule_avgCoord(dfDef)
@@ -65,7 +67,6 @@ if __name__ == '__main__':
     # Calculer le rang de chaque ligne en fonction de la distance, pour chaque semaine et chaque "def_id"
     windowSpec = Window.partitionBy("hour", "def_id", "day", "week").orderBy("vic_window.start").orderBy("distance")
     dfJoined = dfJoined.withColumn("rank", row_number().over(windowSpec))
-    dfJoined.show(100)
 
     # # Définir la fenêtre de partitionnement
     # windowSpec = Window.partitionBy("def_id", "week").orderBy("vic_window.start")
@@ -83,11 +84,9 @@ if __name__ == '__main__':
 
     # Compter la fréquence de chaque "def_id" pour chaque "vic_id"
     dfCount = dfMinDistance.groupBy("vic_id", "def_id", "week").count()
-    dfCount.orderBy("week").orderBy("def_id").show(100)
     # Trier par fréquence et sélectionner l'ID le plus fréquent pour chaque "vic_id"
     windowSpec2 = Window.partitionBy("def_id", "week").orderBy(dfCount["count"].desc())
     dfMostFrequent = dfCount.withColumn("rank", row_number().over(windowSpec2)).filter(col("rank") == 1)
-    dfMostFrequent.orderBy("week").orderBy("def_id").show(100)
     # Sélectionner uniquement les colonnes nécessaires
     dfFinal = dfMostFrequent.select("vic_id", "def_id", "week")
 
@@ -105,7 +104,9 @@ if __name__ == '__main__':
     for id in idlisttab:
         idlist.append(id[0])
     json_out = tojson.dataframeToJSON(mergedpd,True, idlist)
-    with open("resultat.json", "w") as outfile:
+
+    filename = os.path.basename(sys.argv[1])
+    with open("/home/quentin/Desktop/res/"+filename+".json", "w") as outfile:
         outfile.write(json_out)
 
 #TODO: Rassembler pour chaque semaine les id proches pour chaque intervalles 
