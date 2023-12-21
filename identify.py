@@ -186,8 +186,8 @@ def identificationV2(Anon_file, Original_file):
     data_Origin['Long'] = np.round(data_Origin['Long'], decimals=5)
     data_Origin['Lat'] = np.round(data_Origin['Lat'], decimals=5)
 
-    data_Anon['Long'] = np.round(data_Origin['Long'], decimals=5)
-    data_Anon['Lat'] = np.round(data_Origin['Lat'], decimals=5)
+    data_Anon['Long'] = np.round(data_Anon['Long'], decimals=5)
+    data_Anon['Lat'] = np.round(data_Anon['Lat'], decimals=5)
     # print(data_Origin.head(8))
 
     print("> Jointure interne des Data-Frames Origin et Anon. (Cela peut prendre un petit moment)")
