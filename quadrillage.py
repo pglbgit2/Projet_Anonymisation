@@ -1,5 +1,6 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
+from pyspark.sql.functions import count
 
 def readfile(path: str):
     spark = SparkSession.builder.appName("CalculatingDayNightPosition")\
@@ -30,23 +31,35 @@ def Quadrillage(x1,y1,x2,y2,precision=0.001):
         taby.append(y+j*precision)
     return (tabx,taby)
 
-def extractDfList(df, tab):
-    return []
+def extractLongitudeDfList(df, tab):
+    dflist = []
+    for i in range(len(tab)):
+        dflist.append(df.filter((tab[i] <= df.longitude < tab[i+1])))
+    return dflist
+
+def extractLatitudeDfList(df, tab):
+    dflist = []
+    for i in range(len(tab)):
+        filteredDf = df.filter((tab[i] <= df.latitude < tab[i+1]))
+        filteredDf.groupBy("timestamp").agg(count("*").alias("nbValue"))
+        dflist.append(filteredDf)
+    return dflist
 
 if __name__ == '__main__':
     df = readfile("ReferenceINSA.csv")
     (tabx, taby) = Quadrillage(51.016, -4.794, 42.483 , 8.117)
-    df.sort(df.longitude)
-    dflist = extractDfList(df, tabx)
+    dflist = extractLongitudeDfList(df, tabx)
     results = {} # dictionnaire par position
     i = 0
     j = 0
     for xline in dflist: # lignes
         xline.sort(xline.latitude)
-        dfResultsList = extractDfList(xline, taby)
+        dfResultsList = extractLatitudeDfList(xline, taby)
         results[(tabx[i], taby[j])] = {} # dictionnaire par date
         for resultDf in dfResultsList: # colonnes
-            results[(tabx[i], taby[j])][resultDf.timestamp] = resultDf.nbValue
+            #results[(tabx[i], taby[j])][resultDf.timestamp] = resultDf.nbValue
+            # la ligne d'au dessus ne fonctionne pas parce que timestamp et nbValue sont des colonnes.
+            # il faut pour chaque timestamp différent ajouter au dictionnaire le nbValue qui lui correspont
             j+=1 
         i += 1
     
