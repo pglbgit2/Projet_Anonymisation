@@ -39,7 +39,7 @@ def extractLongitudeDfList(df, tab):
 
 def extractLatitudeDfList(df, tab):
     dflist = []
-    for i in range(len(tab)):
+    for i in range(len(tab)-1):
         filteredDf = df.filter((tab[i] <= df.latitude) & (df.latitude < tab[i+1]))
         filteredDf.groupBy("timestamp").agg(count("*").alias("nbValue"))
         dflist.append(filteredDf)
@@ -57,8 +57,6 @@ if __name__ == '__main__':
     results = {} # dictionnaire par position
     i = 0
     j = 0
-    result_udf = udf(lambda z: fill_results(z, results))
-    print(">udf fill results")
     for xline in dflist: # lignes
         xline.sort(xline.latitude)
         dfResultsList = extractLatitudeDfList(xline, taby)
