@@ -1,6 +1,7 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
-from pyspark.sql.functions import count, udf
+from pyspark.sql.functions import count, udf, array
+import itertools
 
 def readfile(path: str):
     spark = SparkSession.builder.appName("CalculatingDayNightPosition")\
@@ -31,42 +32,28 @@ def Quadrillage(x1,y1,x2,y2,precision=0.001):
         taby.append(y+j*precision)
     return (tabx,taby)
 
-def extractLongitudeDfList(df, tab):
-    dflist = []
-    for i in range(len(tab)-1):
-        dflist.append(df.filter((tab[i] <= df.longitude)&(df.longitude < tab[i+1])))
-    return dflist
+def round_quadrillage(row, tab): # row: [longitude / latitude] selon ce qu'on choisit
+    return min(tab, key=lambda x:abs(x-row[0]))
 
-def extractLatitudeDfList(df, tab):
-    dflist = []
-    for i in range(len(tab)-1):
-        filteredDf = df.filter((tab[i] <= df.latitude) & (df.latitude < tab[i+1]))
-        filteredDf.groupBy("timestamp").agg(count("*").alias("nbValue"))
-        dflist.append(filteredDf)
-    return dflist
-
-def fill_results(row, results,i,j):
-    results[(tabx[i], taby[j])][row[1]] = row[4]
 
 if __name__ == '__main__':
     df = readfile("../ReferenceINSA.csv")
     print(">after read original file")
     (tabx, taby) = Quadrillage(51.016, -4.794, 42.483 , 8.117)
-    dflist = extractLongitudeDfList(df, tabx)
-    print(">after splitting in line")
+    round_longitude_udf = udf(lambda z: round_quadrillage(z, tabx), DoubleType())
+    round_latitude_udf = udf(lambda z: round_quadrillage(z, taby), DoubleType())
+    df = df.withColumn('longitude', round_longitude_udf(array('longitude')))
+    df = df.withColumn('latitude', round_latitude_udf(array('latitude')))
+    df.groupBy("timestamp","longitude","latitude").agg(count("*").alias("nbValue"))
+    df.dropDuplicates()
+    print(">after count")        
     results = {} # dictionnaire par position
-    i = 0
-    j = 0
-    for xline in dflist: # lignes
-        xline.sort(xline.latitude)
-        dfResultsList = extractLatitudeDfList(xline, taby)
-        results[(tabx[i], taby[j])] = {} # dictionnaire par date
-        j = 0
-        for resultDf in dfResultsList: # colonnes
-            for row in df.rdd.collect():
-                fill_results(row,results,i,j) # [id,timestamp,longitude,latitude,nbValue]
-            j+=1 
-        print(">ligne "+str(i))
-        i += 1
+    for position in itertools.product(tabx,taby):
+        results[position] = {row['timestamp']:row['nbValue'] for row in df.collect()}
+    print(">after putting in dictionnary")        
+
+
+
     
+
     
