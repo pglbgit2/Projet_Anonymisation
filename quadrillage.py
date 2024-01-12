@@ -40,12 +40,12 @@ if __name__ == '__main__':
     df = readfile("../ReferenceINSA.csv")
     print(">after read original file")
     (tabx, taby) = Quadrillage(51.016, -4.794, 42.483 , 8.117)
-    round_longitude_udf = udf(lambda z: round_quadrillage(z, tabx), DoubleType())
-    round_latitude_udf = udf(lambda z: round_quadrillage(z, taby), DoubleType())
+    round_longitude_udf = udf(lambda z: round_quadrillage(z, taby), DoubleType())
+    round_latitude_udf = udf(lambda z: round_quadrillage(z, tabx), DoubleType())
     df = df.withColumn('longitude', round_longitude_udf(array('longitude')))
     df = df.withColumn('latitude', round_latitude_udf(array('latitude')))
-    df.groupBy("timestamp","longitude","latitude").agg(count("*").alias("nbValue"))
-    df.dropDuplicates()
+    df = df.groupBy("timestamp","longitude","latitude").agg(count("*").alias("nbValue"))
+    df = df.dropDuplicates()
     print(">after count")        
     results = {} # dictionnaire par position
     for position in itertools.product(tabx,taby):
