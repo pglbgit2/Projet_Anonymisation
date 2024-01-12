@@ -19,7 +19,7 @@ def readfile(path: str):
     return spark.read.csv(path, header=False, schema=schema, sep='\t')
 
 # on prend deux points qui servent de reference pour le tracé: ils délimitent les points en haut à gauche et en bas à droite d'un rectangle
-def Quadrillage(x1,y1,x2,y2,precision=0.001):
+def Quadrillage(x1,y1,x2,y2,precision=0.1):
     nx = round(abs(x2-x1)/precision)
     tabx = []
     x = min([x1,x2])
@@ -39,7 +39,7 @@ def round_quadrillage(row, tab): # row: [longitude / latitude] selon ce qu'on ch
 if __name__ == '__main__':
     df = readfile("../ReferenceINSA.csv")
     print(">after read original file")
-    (tabx, taby) = Quadrillage(51.016, -4.794, 42.483 , 8.117)
+    (tabx, taby) = Quadrillage(45.850, 4.730, 45.623 , 5.020)
     round_longitude_udf = udf(lambda z: round_quadrillage(z, taby), DoubleType())
     round_latitude_udf = udf(lambda z: round_quadrillage(z, tabx), DoubleType())
     df = df.withColumn('longitude', round_longitude_udf(array('longitude')))
