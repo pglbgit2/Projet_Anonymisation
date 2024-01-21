@@ -1,6 +1,7 @@
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
-from pyspark.sql.functions import count, udf, array
+import pyspark.sql.functions as F
+from pyspark.sql.functions import filter
 import itertools
 
 def readfile(path: str):
@@ -33,18 +34,29 @@ def Quadrillage(x1,y1,x2,y2,precision=0.1):
     return (tabx,taby)
 
 def round_quadrillage(row, tab): # row: [longitude / latitude] selon ce qu'on choisit
-    return min(tab, key=lambda x:abs(x-row[0]))
+    return closest_without_border(row[0], tab)
+
+def closest_without_border(v,tab):
+    if min(tab)<=v<=max(tab):
+        min(tab, key=lambda x: abs(x-v))
+    else:
+        return -1
 
 
 if __name__ == '__main__':
     df = readfile("../ReferenceINSA.csv")
     print(">after read original file")
     (tabx, taby) = Quadrillage(45.850, 4.730, 45.623 , 5.020)
-    round_longitude_udf = udf(lambda z: round_quadrillage(z, taby), DoubleType())
-    round_latitude_udf = udf(lambda z: round_quadrillage(z, tabx), DoubleType())
-    df = df.withColumn('longitude', round_longitude_udf(array('longitude')))
-    df = df.withColumn('latitude', round_latitude_udf(array('latitude')))
-    df = df.groupBy("timestamp","longitude","latitude").agg(count("*").alias("nbValue"))
+    df = df.withColumn("timestamp", F.round((F.unix_timestamp("timestamp")/1200)*1200).cast("timestamp"))
+    print(">rounding timestamp to 20 minutes gap")
+    round_longitude_udf = F.udf(lambda z: round_quadrillage(z, taby), DoubleType())
+    round_latitude_udf = F.udf(lambda z: round_quadrillage(z, tabx), DoubleType())
+    df = df.withColumn('longitude', round_longitude_udf(F.array('longitude')))
+    df = df.filter(F.col("longitude") != -1)
+    df = df.withColumn('latitude', round_latitude_udf(F.array('latitude')))
+    df = df.filter(F.col("latitude") != -1)
+
+    df = df.groupBy("timestamp","longitude","latitude").agg(F.count("*").alias("nbValue"))
     df = df.dropDuplicates()
     print(">after count")        
     results = {} # dictionnaire par position
