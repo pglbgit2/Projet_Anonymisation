@@ -43,10 +43,8 @@ def closest_without_border(v,tab):
         return -1
 
 
-if __name__ == '__main__':
-    df = readfile("../ReferenceINSA.csv")
-    print(">after read original file")
-    (tabx, taby) = Quadrillage(45.850, 4.730, 45.623 , 5.020)
+
+def get_dict_from_df(df, tabx, taby):
     df = df.withColumn("timestamp", F.round((F.unix_timestamp("timestamp")/1200)*1200).cast("timestamp"))
     print(">rounding timestamp to 20 minutes gap")
     round_longitude_udf = F.udf(lambda z: round_quadrillage(z, taby), DoubleType())
@@ -55,14 +53,20 @@ if __name__ == '__main__':
     df = df.filter(F.col("longitude") != -1)
     df = df.withColumn('latitude', round_latitude_udf(F.array('latitude')))
     df = df.filter(F.col("latitude") != -1)
-
     df = df.groupBy("timestamp","longitude","latitude").agg(F.count("*").alias("nbValue"))
     df = df.dropDuplicates()
     print(">after count")        
     results = {} # dictionnaire par position
     for position in itertools.product(tabx,taby):
         results[position] = {row['timestamp']:row['nbValue'] for row in df.collect()}
-    print(">after putting in dictionnary")        
+    print(">after putting in dictionnary")
+    return results
+
+if __name__ == '__main__':
+    ogdf = readfile("../ReferenceINSA.csv")
+    print(">after read original file")
+    (tabx, taby) = Quadrillage(45.850, 4.730, 45.623 , 5.020)
+    og_dict = get_dict_from_df(ogdf,tabx,taby)
 
 
 
