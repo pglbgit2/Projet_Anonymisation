@@ -53,7 +53,7 @@ def prep_vitesse(df, tolerance):
     # Somme des distances parcourues par groupe de 10 minutes
     df = df.groupBy("id", "time_window").agg(sum("distance").alias("total_distance"))
     # Calcul de la vitesse en km/h
-    df = df.withColumn("vitesse", (col("total_distance") * 0.006))
+    df = df.withColumn("vitesse", (col("total_distance") /1000 )*(60/tolerance))
     # On supprime les vitesses autres que la marche
     df = df.filter(df.vitesse > 3).filter(df.vitesse < 13)
 
