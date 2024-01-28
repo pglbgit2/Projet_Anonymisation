@@ -1,26 +1,73 @@
-from pyspark.sql import SparkSession
+from pyspark.sql import SparkSession, Window
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
-from pyspark.sql.functions import count, udf, array, lead, col, unix_timestamp, hour
+from pyspark.sql.functions import count, udf, array, lead, col, unix_timestamp, hour, dayofweek, max, min, sum, avg, window, abs, radians, cos, sin, asin, sqrt
 import itertools
-from quadrillage import round_quadrillage
 
 
 def del_lignes(df):
     df = df.where(df.id != 'DEL')
+    # On supprime les lignes du week-end
+    df = df.filter(dayofweek(df.timestamp).isin([2, 6]))
+    # On garde que les heures de trajet
+    conditionTrajet=(((hour(df["timestamp"]) < 22) & (hour(df["timestamp"]) >= 16)) | ((hour(df["timestamp"]) >= 6) & (hour(df["timestamp"]) < 9)))
+    df = df.filter(conditionTrajet)
     df = df.orderBy("id", "timestamp")
+    return df
+
+def haversine(lon1, lat1, lon2, lat2):
+    """
+    Calculate the great circle distance in meters between two points 
+    on the earth (specified in decimal degrees)
+    """
+    # convert decimal degrees to radians 
+    lon1, lat1, lon2, lat2 = map(radians, [lon1, lat1, lon2, lat2])
+
+    # haversine formula 
+    dlon = lon2 - lon1 
+    dlat = lat2 - lat1 
+    a = sin(dlat/2)**2 + cos(lat1) * cos(lat2) * sin(dlon/2)**2
+    c = 2 * asin(sqrt(a)) 
+    r = 6371 # Radius of earth in kilometers. Use 3956 for miles
+    return c * r * 1000
 
 
-def prep_vitesse(df, heure_depart, heure_arrivee, heure_retour_depart, heure_retour_arrivee):
-    df = df.withColumn("next_longitude", lead("longitude"))
-    df = df.withColumn("next_latitude", lead("latitude"))
-    df = df.withColumn("cat", "matin").where(hour(df.timestamp)>=heure_depart & (df.timestamp)<=heure_arrivee)
-    df = df.withColumn("cat", "soir").where(hour(df.timestamp)>=heure_retour_depart & hour(df.timestamp)<=heure_retour_arrivee)
-    df = df.where(df.cat=="matin" | df.cat =="soir")
-    df.withColumn("distance", ((df.next_latitude-df.latitude)**2 - (df.next_longitude-df.longitude)**2)**(1/2))
+def prep_vitesse(df):
+    windowSpec = Window.partitionBy("id").orderBy("timestamp")
+    # Gestion des doublons de timestamp
+    df = df.groupBy("id", "timestamp")\
+        .agg(avg("longitude").alias("longitude"), 
+             avg("latitude").alias("latitude"))
+    
+    # Ajout de next longitude et latitude
+    df = df.withColumn("next_longitude", lead("longitude").over(windowSpec))
+    df = df.withColumn("next_latitude", lead("latitude").over(windowSpec))
 
-    df_sum = df.groupBy("id", "day", "cat").aggr(max("timestamp").alias("max_temps"), min("timestamp").alias("min_temps"),sum("distance").alias("distance_total"))
-    df_spe = df_sum.withColumn("speed",df_sum.distance_totale/(df.max_temps-df.min_temps))
-    return df_spe
+    # Création des groupes de 10 minutes
+    df = df.withColumn("time_window", window(df.timestamp, "10 minutes"))
+
+    # Calcule de la distance parcourue entre deux points
+    df = df.withColumn("diff_longitude", abs(col("next_longitude") - col("longitude")))
+    df = df.withColumn("diff_latitude", abs(col("next_latitude") - col("latitude")))
+    # Conversion en metres
+    df = df.withColumn("distance", haversine(col("longitude"), col("latitude"), col("next_longitude"), col("next_latitude")))
+    df = df.drop("diff_longitude", "diff_latitude", "next_longitude", "next_latitude", "longitude", "latitude")
+    # Somme des distances parcourues par groupe de 10 minutes
+    df = df.groupBy("id", "time_window").agg(sum("distance").alias("total_distance"))
+    # Calcul de la vitesse en km/h
+    df = df.withColumn("vitesse", (col("total_distance") * 0.006))
+    # On supprime les vitesses autres que la marche
+    df = df.filter(df.vitesse > 3).filter(df.vitesse < 13)
+
+    df = df.orderBy("id").groupBy("id").sum("total_distance")
+    df = df.groupBy().avg("sum(total_distance)")
+
+    df.show(100)
+
+    # Il y a t'il plus opti ?????Car c'est long pour peu
+    result = df.first()[0]
+    final_value = int(result)
+    print(final_value)
+    return final_value
 
 def readfile(path: str):
     spark = SparkSession.builder.appName("CalculatingSpeed")\
@@ -39,7 +86,9 @@ def readfile(path: str):
 
 if __name__ == '__main__':
     df_ori = readfile("ReferenceINSA.csv")
-    df_anon = readfile("files/???.csv")
-    del_lignes(df_anon)
-    df_ori_speed = prep_vitesse(df_ori, 7, 8, 17, 19)
-    df_anon_speed = prep_vitesse(df_ori, 7, 8, 17, 19)
+    df_anon = readfile("alo.csv")
+    df_ori = del_lignes(df_ori)
+    df_anon = del_lignes(df_anon)
+    distanceMoyenneMarcheOri = prep_vitesse(df_ori)
+    distanceMoyenneMarcheAnon = prep_vitesse(df_anon)
+    print(distanceMoyenneMarcheAnon/distanceMoyenneMarcheOri)
