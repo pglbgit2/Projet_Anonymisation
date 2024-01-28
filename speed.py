@@ -1,8 +1,7 @@
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
-from pyspark.sql.functions import count, udf, array, lead, col, unix_timestamp, hour, dayofweek, max, min, sum, avg, window, abs, radians, cos, sin, asin, sqrt
+from pyspark.sql.functions import count, udf, array, lead, col, unix_timestamp, hour, dayofweek, max, sum, avg, window, abs, radians, cos, sin, asin, sqrt
 import itertools
-
 
 def del_lignes(df):
     df = df.where(df.id != 'DEL')
@@ -31,7 +30,7 @@ def haversine(lon1, lat1, lon2, lat2):
     return c * r * 1000
 
 
-def prep_vitesse(df):
+def prep_vitesse(df, tolerance):
     windowSpec = Window.partitionBy("id").orderBy("timestamp")
     # Gestion des doublons de timestamp
     df = df.groupBy("id", "timestamp")\
@@ -43,7 +42,7 @@ def prep_vitesse(df):
     df = df.withColumn("next_latitude", lead("latitude").over(windowSpec))
 
     # Création des groupes de 10 minutes
-    df = df.withColumn("time_window", window(df.timestamp, "10 minutes"))
+    df = df.withColumn("time_window", window(df.timestamp, str(tolerance) +" minutes"))
 
     # Calcule de la distance parcourue entre deux points
     df = df.withColumn("diff_longitude", abs(col("next_longitude") - col("longitude")))
@@ -86,9 +85,10 @@ def readfile(path: str):
 
 if __name__ == '__main__':
     df_ori = readfile("ReferenceINSA.csv")
-    df_anon = readfile("alo.csv")
+    df_anon = readfile("files/THE_309.csv")
     df_ori = del_lignes(df_ori)
     df_anon = del_lignes(df_anon)
-    distanceMoyenneMarcheOri = prep_vitesse(df_ori)
-    distanceMoyenneMarcheAnon = prep_vitesse(df_anon)
-    print(distanceMoyenneMarcheAnon/distanceMoyenneMarcheOri)
+    distanceMoyenneMarcheOri = prep_vitesse(df_ori, 1)
+    distanceMoyenneMarcheAnon = prep_vitesse(df_anon, 1)
+    utility = min(distanceMoyenneMarcheAnon/distanceMoyenneMarcheOri, distanceMoyenneMarcheOri/distanceMoyenneMarcheAnon)
+    print(utility)
