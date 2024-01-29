@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
-from pyspark.sql.functions import count, udf, array, lead, col, unix_timestamp, hour, dayofweek, max, sum, avg, window, abs, radians, cos, sin, asin, sqrt
+from pyspark.sql.functions import count, udf, array, lead, col, unix_timestamp, hour, dayofweek, max, sum, avg, window, abs as absolute, radians, cos, sin, asin, sqrt, weekofyear
 import itertools
 
 def del_lignes(df):
@@ -37,6 +37,7 @@ def prep_vitesse(df, tolerance):
         .agg(avg("longitude").alias("longitude"), 
              avg("latitude").alias("latitude"))
     
+    df = df.withColumn("week", weekofyear("timestamp"))
     # Ajout de next longitude et latitude
     df = df.withColumn("next_longitude", lead("longitude").over(windowSpec))
     df = df.withColumn("next_latitude", lead("latitude").over(windowSpec))
@@ -45,19 +46,19 @@ def prep_vitesse(df, tolerance):
     df = df.withColumn("time_window", window(df.timestamp, str(tolerance) +" minutes"))
 
     # Calcule de la distance parcourue entre deux points
-    df = df.withColumn("diff_longitude", abs(col("next_longitude") - col("longitude")))
-    df = df.withColumn("diff_latitude", abs(col("next_latitude") - col("latitude")))
+    df = df.withColumn("diff_longitude", absolute(col("next_longitude") - col("longitude")))
+    df = df.withColumn("diff_latitude", absolute(col("next_latitude") - col("latitude")))
     # Conversion en metres
     df = df.withColumn("distance", haversine(col("longitude"), col("latitude"), col("next_longitude"), col("next_latitude")))
     df = df.drop("diff_longitude", "diff_latitude", "next_longitude", "next_latitude", "longitude", "latitude")
     # Somme des distances parcourues par groupe de 10 minutes
-    df = df.groupBy("id", "time_window").agg(sum("distance").alias("total_distance"))
+    df = df.groupBy("id", "time_window", "week").agg(sum("distance").alias("total_distance"))
     # Calcul de la vitesse en km/h
     df = df.withColumn("vitesse", (col("total_distance") /1000 )*(60/tolerance))
     # On supprime les vitesses autres que la marche
     df = df.filter(df.vitesse > 3).filter(df.vitesse < 13)
 
-    df = df.orderBy("id").groupBy("id").sum("total_distance")
+    df = df.orderBy("id").groupBy("id", "week").sum("total_distance")
     df = df.groupBy().avg("sum(total_distance)")
 
     df.show(100)
@@ -88,7 +89,7 @@ if __name__ == '__main__':
     df_anon = readfile("files/THE_309.csv")
     df_ori = del_lignes(df_ori)
     df_anon = del_lignes(df_anon)
-    distanceMoyenneMarcheOri = prep_vitesse(df_ori, 1)
-    distanceMoyenneMarcheAnon = prep_vitesse(df_anon, 1)
+    distanceMoyenneMarcheOri = prep_vitesse(df_ori, 10)
+    distanceMoyenneMarcheAnon = prep_vitesse(df_anon, 10)
     utility = 1-abs(distanceMoyenneMarcheAnon-distanceMoyenneMarcheOri)/distanceMoyenneMarcheOri
     print(utility)
