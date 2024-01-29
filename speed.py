@@ -90,5 +90,5 @@ if __name__ == '__main__':
     df_anon = del_lignes(df_anon)
     distanceMoyenneMarcheOri = prep_vitesse(df_ori, 1)
     distanceMoyenneMarcheAnon = prep_vitesse(df_anon, 1)
-    utility = min(distanceMoyenneMarcheAnon/distanceMoyenneMarcheOri, distanceMoyenneMarcheOri/distanceMoyenneMarcheAnon)
+    utility = 1-abs(distanceMoyenneMarcheAnon-distanceMoyenneMarcheOri)/distanceMoyenneMarcheOri
     print(utility)
