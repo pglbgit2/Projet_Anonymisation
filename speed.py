@@ -1,6 +1,6 @@
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.types import StructType, StructField, StringType, DoubleType, TimestampType
-from pyspark.sql.functions import count, udf, array, lead, col, unix_timestamp, hour, dayofweek, max, sum, avg, window, abs as absolute, radians, cos, sin, asin, sqrt, weekofyear
+from pyspark.sql.functions import count, udf, array, lead, col, unix_timestamp, hour, dayofweek, max, sum, avg, window, abs as absolute, radians, cos, sin, asin, sqrt, weekofyear, dayofyear, lit, when
 import itertools
 
 def del_lignes(df):
@@ -8,6 +8,7 @@ def del_lignes(df):
     # On supprime les lignes du week-end
     df = df.filter(dayofweek(df.timestamp).isin([2, 6]))
     # On garde que les heures de trajet
+
     conditionTrajet=(((hour(df["timestamp"]) < 22) & (hour(df["timestamp"]) >= 16)) | ((hour(df["timestamp"]) >= 6) & (hour(df["timestamp"]) < 9)))
     df = df.filter(conditionTrajet)
     df = df.orderBy("id", "timestamp")
@@ -31,16 +32,30 @@ def haversine(lon1, lat1, lon2, lat2):
 
 
 def prep_vitesse(df, tolerance):
-    windowSpec = Window.partitionBy("id").orderBy("timestamp")
     # Gestion des doublons de timestamp
     df = df.groupBy("id", "timestamp")\
         .agg(avg("longitude").alias("longitude"), 
              avg("latitude").alias("latitude"))
+
+    condition1 = ((hour(df["timestamp"]) < 22) & (hour(df["timestamp"]) >= 16))
+    condition2 = ((hour(df["timestamp"]) >= 6) & (hour(df["timestamp"]) < 9))
+
+    df = df.withColumn("cat",when(condition1, lit("1")).otherwise(lit("2")))
+    # df = df.withColumn("cat", lit("2")).where(condition2)
+
+    # df.show()
     
+    windowSpec = Window.partitionBy("id", dayofyear("timestamp"), "cat").orderBy("timestamp")
+
     df = df.withColumn("week", weekofyear("timestamp"))
     # Ajout de next longitude et latitude
     df = df.withColumn("next_longitude", lead("longitude").over(windowSpec))
     df = df.withColumn("next_latitude", lead("latitude").over(windowSpec))
+
+    df = df.filter(col("next_longitude").isNotNull())
+
+    # df.show()
+
 
     # Création des groupes de 10 minutes
     df = df.withColumn("time_window", window(df.timestamp, str(tolerance) +" minutes"))
@@ -52,7 +67,9 @@ def prep_vitesse(df, tolerance):
     df = df.withColumn("distance", haversine(col("longitude"), col("latitude"), col("next_longitude"), col("next_latitude")))
     df = df.drop("diff_longitude", "diff_latitude", "next_longitude", "next_latitude", "longitude", "latitude")
     # Somme des distances parcourues par groupe de 10 minutes
+    df.show()
     df = df.groupBy("id", "time_window", "week").agg(sum("distance").alias("total_distance"))
+    df.show()
     # Calcul de la vitesse en km/h
     df = df.withColumn("vitesse", (col("total_distance") /1000 )*(60/tolerance))
     # On supprime les vitesses autres que la marche
@@ -86,7 +103,7 @@ def readfile(path: str):
 
 if __name__ == '__main__':
     df_ori = readfile("ReferenceINSA.csv")
-    df_anon = readfile("files/THE_309.csv")
+    df_anon = readfile("files/VinAnonyme_701.csv")
     df_ori = del_lignes(df_ori)
     df_anon = del_lignes(df_anon)
     distanceMoyenneMarcheOri = prep_vitesse(df_ori, 10)
